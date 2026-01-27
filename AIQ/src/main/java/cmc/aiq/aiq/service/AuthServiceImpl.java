@@ -1,6 +1,6 @@
 package cmc.aiq.aiq.service;
 
-import cmc.aiq.aiq.common.JwtTokenProvider;
+import cmc.aiq.aiq.global.security.jwt.JwtTokenProvider;
 import cmc.aiq.aiq.domain.AuthProvider;
 import cmc.aiq.aiq.domain.Users;
 import cmc.aiq.aiq.dto.LoginRequestDTO;

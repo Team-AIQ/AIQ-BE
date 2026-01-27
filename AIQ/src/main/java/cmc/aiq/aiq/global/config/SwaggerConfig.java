@@ -1,4 +1,4 @@
-package cmc.aiq.aiq.common;
+package cmc.aiq.aiq.global.config;
 
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;

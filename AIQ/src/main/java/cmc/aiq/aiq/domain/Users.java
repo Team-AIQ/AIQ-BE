@@ -69,4 +69,10 @@ public class Users {
     public void updateRefreshToken(String refreshToken) {
         this.refreshToken = refreshToken;
     }
+    public Users updateSocialInfo(String nickname){
+        this.nickname = nickname;
+        return this;
+    }
+
+
 }
