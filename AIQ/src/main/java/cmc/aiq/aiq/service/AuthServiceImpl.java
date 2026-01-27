@@ -73,4 +73,34 @@ public class AuthServiceImpl implements AuthService{
         // 3. 새로운 Access Token 발행
         return jwtTokenProvider.createAccessToken(user.getId(), user.getEmail());
     }
+
+    @Override
+    @Transactional
+    public TokenResponseDTO refresh(String refreshToken) {
+        // 1. 토큰 유효성 검사 (JwtTokenProvider에 있는 메서드 활용)
+        if (!jwtTokenProvider.validateToken(refreshToken)) {
+            throw new RuntimeException("유효하지 않은 리프레시 토큰입니다.");
+        }
+
+        // 2. 토큰에서 사용자 이메일 추출
+        String email = jwtTokenProvider.getUserEmail(refreshToken);
+
+        // 3. DB에서 사용자 조회
+        Users user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+
+        // 4. DB에 저장된 리프레시 토큰과 일치하는지 확인
+        if (!refreshToken.equals(user.getRefreshToken())) {
+            throw new RuntimeException("토큰 정보가 일치하지 않습니다.");
+        }
+
+        // 5. 새로운 토큰 쌍 생성
+        String newAccessToken = jwtTokenProvider.createAccessToken(user.getId(), user.getEmail());
+        String newRefreshToken = jwtTokenProvider.createRefreshToken(user.getId(), user.getEmail());
+
+        // 6. DB의 리프레시 토큰 업데이트 (Rotation 전략)
+        user.updateRefreshToken(newRefreshToken);
+
+        return new TokenResponseDTO(newAccessToken, newRefreshToken);
+    }
 }
