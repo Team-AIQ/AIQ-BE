@@ -3,6 +3,7 @@ package cmc.aiq.aiq.service.Mail;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.log4j.Log4j2;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -13,6 +14,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Log4j2
 public class MailServiceImpl implements MailService {
 
     private final JavaMailSender mailSender;
@@ -41,11 +43,10 @@ public class MailServiceImpl implements MailService {
         mailSender.send(message);
     }
     private String getEmailHtml(String verificationLink) {
-        // 실제로는 별도의 템플릿 엔진(Thymeleaf 등)을 쓰거나
-        // 외부 파일에서 읽어오는 것이 깔끔하지만, 우선 String으로 구현해 드릴게요.
         return "<div style=\"font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; width: 100%; max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 10px; overflow: hidden;\">\n" +
                 "    <div style=\"background-color: #f8f9fa; padding: 30px; text-align: center;\">\n" +
-                "        <img src=\"https://your-domain.com/logo.png\" alt=\"AIQ Logo\" style=\"width: 120px; margin-bottom: 10px;\">\n" +
+                "        \n" +
+                "        <img src=\"https://your-actual-domain.com/logo.png\" alt=\"AIQ Logo\" style=\"width: 120px; margin-bottom: 10px;\">\n" +
                 "        <h2 style=\"color: #333; margin: 0;\">이메일 인증 안내</h2>\n" +
                 "    </div>\n" +
                 "    \n" +
@@ -57,7 +58,8 @@ public class MailServiceImpl implements MailService {
                 "        </p>\n" +
                 "        \n" +
                 "        <div style=\"text-align: center; margin: 40px 0;\">\n" +
-                "            <a href=\"${verificationLink}\" style=\"background-color: #007bff; color: white; padding: 15px 35px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 18px; display: inline-block;\">\n" +
+                "            \n" +
+                "            <a href=\"" + verificationLink + "\" style=\"background-color: #007bff; color: white; padding: 15px 35px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 18px; display: inline-block;\">\n" +
                 "                AIQ 시작하기\n" +
                 "            </a>\n" +
                 "        </div>\n" +
