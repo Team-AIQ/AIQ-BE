@@ -4,9 +4,12 @@ import cmc.aiq.aiq.dto.LoginRequestDTO;
 import cmc.aiq.aiq.dto.SignUpRequestDTO;
 import cmc.aiq.aiq.dto.TokenResponseDTO;
 import cmc.aiq.aiq.service.AuthService;
+import cmc.aiq.aiq.service.Mail.MailService;
 import io.swagger.v3.oas.annotations.Operation;
+import jakarta.mail.MessagingException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -16,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 @Log4j2
 public class AuthController {
     private final AuthService authService;
+    private final MailService mailService;
 
     @PostMapping("/signup")
     public String signUp(@RequestBody SignUpRequestDTO request){
@@ -38,5 +42,25 @@ public class AuthController {
 
         TokenResponseDTO response = authService.refresh(token);
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/email-request")
+    public ResponseEntity<String> requestMagicLink(@RequestParam String email) throws MessagingException {
+        mailService.sendMagicLink(email);
+        return ResponseEntity.ok("인증 이메일이 발송되었습니다.");
+    }
+
+    // 2. 매직 링크 클릭 시 처리 (GET 요청)
+    @GetMapping("/verify-link")
+    public ResponseEntity<String> verifyMagicLink(@RequestParam String token) {
+        String email = mailService.verifyToken(token);
+
+        if (email != null) {
+            // 여기서 해당 이메일을 '인증됨' 상태로 Redis에 잠깐 저장하거나,
+            // 바로 회원가입 프로세스로 리다이렉트 시킵니다.
+            return ResponseEntity.ok("인증 성공! 이메일: " + email);
+        } else {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("만료되었거나 유효하지 않은 토큰입니다.");
+        }
     }
 }
