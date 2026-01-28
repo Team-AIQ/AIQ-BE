@@ -56,6 +56,9 @@ public class Users {
     @Column(name = "refresh_token")
     private String refreshToken;
 
+    @Column(name = "initial_login_at")
+    private LocalDateTime initialLoginAt;
+
     @Builder
     public Users(String email, String password, String nickname,
                  AuthProvider provider, String providerId, Long currentCredits) {
@@ -71,6 +74,10 @@ public class Users {
     }
     public Users updateSocialInfo(String nickname){
         this.nickname = nickname;
+        return this;
+    }
+    public Users updateInitialLoginAt(LocalDateTime time){
+        this.initialLoginAt = time;
         return this;
     }
 

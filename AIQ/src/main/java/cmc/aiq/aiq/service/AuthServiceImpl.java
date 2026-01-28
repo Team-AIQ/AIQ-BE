@@ -12,6 +12,8 @@ import lombok.extern.log4j.Log4j2;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
+
 @Service
 @Log4j2
 @RequiredArgsConstructor
@@ -43,10 +45,13 @@ public class AuthServiceImpl implements AuthService{
         if (!passwordEncoder.matches(loginrequestDTO.getPassword(), user.getPassword())) {
             throw new RuntimeException("비밀번호가 일치하지 않습니다.");
         }
-
+        if (user.getInitialLoginAt() == null ||
+                user.getInitialLoginAt().plusDays(90).isBefore(LocalDateTime.now())) {
+            user.updateInitialLoginAt(LocalDateTime.now()); // 지성님이 만드신 메서드 사용!
+        }
         // 두 개의 토큰 생성
         String accessToken = jwtTokenProvider.createAccessToken(user.getId(), user.getEmail());
-        String refreshToken = jwtTokenProvider.createRefreshToken(user.getId(), user.getEmail());
+        String refreshToken = jwtTokenProvider.createRefreshToken(user.getId(), user.getEmail(), loginrequestDTO.isRememberMe());
 
         // DB에 Refresh Token 업데이트
         user.updateRefreshToken(refreshToken);
@@ -91,12 +96,22 @@ public class AuthServiceImpl implements AuthService{
 
         // 4. DB에 저장된 리프레시 토큰과 일치하는지 확인
         if (!refreshToken.equals(user.getRefreshToken())) {
-            throw new RuntimeException("토큰 정보가 일치하지 않습니다.");
+            // 일치하지 않으면 누군가 예전 토큰을 쓴 것이므로 보안을 위해 토큰을 무효화합니다.
+            user.updateRefreshToken(null);
+            throw new RuntimeException("로그인 정보가 일치하지 않습니다. 다시 로그인해주세요.");
         }
 
+        // 5. 절대 만료 시간(90일) 검증
+        if (user.getInitialLoginAt() == null ||
+                user.getInitialLoginAt().plusDays(90).isBefore(LocalDateTime.now())) {
+            user.updateRefreshToken(null); // 세션 강제 종료
+            throw new RuntimeException("보안 정책상 다시 로그인이 필요합니다. (절대 만료 기간 초과)");
+        }
+
+        boolean isRememberMe = jwtTokenProvider.getIsRememberMe(refreshToken);
         // 5. 새로운 토큰 쌍 생성
         String newAccessToken = jwtTokenProvider.createAccessToken(user.getId(), user.getEmail());
-        String newRefreshToken = jwtTokenProvider.createRefreshToken(user.getId(), user.getEmail());
+        String newRefreshToken = jwtTokenProvider.createRefreshToken(user.getId(), user.getEmail() , isRememberMe);
 
         // 6. DB의 리프레시 토큰 업데이트 (Rotation 전략)
         user.updateRefreshToken(newRefreshToken);

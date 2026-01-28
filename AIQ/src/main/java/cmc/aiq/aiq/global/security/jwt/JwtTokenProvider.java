@@ -28,6 +28,9 @@ public class JwtTokenProvider {
     @Value("${jwt.refresh-expiration}")
     private long refreshExpiration;
 
+    @Value("${jwt.remember-me-expiration}")
+    private long rememberMeExpiration;
+
     private Key key;
 
     @PostConstruct
@@ -38,23 +41,26 @@ public class JwtTokenProvider {
 
     // Access Token 생성
     public String createAccessToken(Long userId, String email) {
-        return createToken(userId, email, accessExpiration);
+        return createToken(userId, email, accessExpiration , false);
     }
 
     // Refresh Token 생성
-    public String createRefreshToken(Long userId, String email) {
-        return createToken(userId, email, refreshExpiration);
+    public String createRefreshToken(Long userId, String email, boolean isRememberMe) {
+        long validity = isRememberMe ? rememberMeExpiration : refreshExpiration;
+        return createToken(userId, email, validity , isRememberMe);
     }
 
     // 1. 토큰 생성 (이메일과 ID를 담아 암호화)
-    private String createToken(Long userId, String email, long expiration) {
+    private String createToken(Long userId, String email, long validity , boolean isRememberMe) {
         Claims claims = Jwts.claims().setSubject(email);
         claims.put("userId", userId);
+        claims.put("isRememberMe", isRememberMe);
         Date now = new Date();
+        Date expiryDate = new Date(now.getTime() + validity);
         return Jwts.builder()
                 .setClaims(claims)
                 .setIssuedAt(now)
-                .setExpiration(new Date(now.getTime() + expiration))
+                .setExpiration(expiryDate)
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
     }
@@ -99,5 +105,8 @@ public class JwtTokenProvider {
         } catch (ExpiredJwtException e) {
             return e.getClaims();
         }
+    }
+    public boolean getIsRememberMe(String token) {
+        return parseClaims(token).get("isRememberMe", Boolean.class);
     }
 }

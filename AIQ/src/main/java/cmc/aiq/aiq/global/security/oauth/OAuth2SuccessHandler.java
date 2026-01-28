@@ -14,6 +14,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.Map;
 
 @Component
@@ -33,9 +34,15 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         String email = extractEmail(oAuth2User , registrationId);
 
         Users user = userRepository.findByEmail(email).orElseThrow();
+        boolean isRememberMe = true;
 
         String accessToken = jwtTokenProvider.createAccessToken(user.getId(), user.getEmail());
-        String refreshToken = jwtTokenProvider.createRefreshToken(user.getId(), user.getEmail());
+        String refreshToken = jwtTokenProvider.createRefreshToken(user.getId(), user.getEmail(), isRememberMe);
+
+        if (user.getInitialLoginAt() == null ||
+                user.getInitialLoginAt().plusDays(90).isBefore(LocalDateTime.now())) {
+            user.updateInitialLoginAt(LocalDateTime.now());
+        }
 
         user.updateRefreshToken(refreshToken);
         userRepository.save(user);
