@@ -20,6 +20,7 @@ public class MailServiceImpl implements MailService {
     private final JavaMailSender mailSender;
     private final StringRedisTemplate redisTemplate;
 
+    // 이메일 인증 메일 발송
     @Override
     public void sendMagicLink(String email) throws MessagingException {
         String token = UUID.randomUUID().toString();
@@ -42,6 +43,22 @@ public class MailServiceImpl implements MailService {
 
         mailSender.send(message);
     }
+
+    // 비밀번호 찾기 인증코드 발송
+    public void sendVerificationCode(String email, String code) throws MessagingException {
+        MimeMessage message = mailSender.createMimeMessage();
+        MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+        helper.setTo(email);
+        helper.setSubject("[AIQ] 비밀번호 재설정 인증 코드");
+
+        // HTML 템플릿에 코드 삽입
+        String htmlContent = "<h1>인증 코드: " + code + "</h1>";
+        helper.setText(htmlContent, true);
+
+        mailSender.send(message);
+    }
+
     private String getEmailHtml(String verificationLink) {
         return "<div style=\"font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; width: 100%; max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 10px; overflow: hidden;\">\n" +
                 "    <div style=\"background-color: #f8f9fa; padding: 30px; text-align: center;\">\n" +

@@ -80,6 +80,9 @@ public class Users {
         this.initialLoginAt = time;
         return this;
     }
+    public void updatePassword(String password){
+        this.password = password;
+    }
 
 
 }

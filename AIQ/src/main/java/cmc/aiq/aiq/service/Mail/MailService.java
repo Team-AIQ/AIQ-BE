@@ -5,4 +5,5 @@ import jakarta.mail.MessagingException;
 public interface MailService {
     void sendMagicLink(String email) throws MessagingException;
     String verifyToken(String token);
+    void sendVerificationCode(String email, String code) throws MessagingException;
 }

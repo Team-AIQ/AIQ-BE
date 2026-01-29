@@ -6,13 +6,19 @@ import cmc.aiq.aiq.domain.Users;
 import cmc.aiq.aiq.dto.LoginRequestDTO;
 import cmc.aiq.aiq.dto.TokenResponseDTO;
 import cmc.aiq.aiq.repository.UserRepository;
+import cmc.aiq.aiq.service.Mail.MailService;
+import jakarta.mail.MessagingException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.Random;
+import java.util.UUID;
 
 @Service
 @Log4j2
@@ -22,6 +28,8 @@ public class AuthServiceImpl implements AuthService{
     private final UserRepository userRepository;
     private final BCryptPasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
+    private final MailService mailService;
+    private final StringRedisTemplate redisTemplate;
 
     @Transactional
     public void signUp(String email, String password, String nickname){
@@ -117,5 +125,53 @@ public class AuthServiceImpl implements AuthService{
         user.updateRefreshToken(newRefreshToken);
 
         return new TokenResponseDTO(newAccessToken, newRefreshToken);
+    }
+
+    // 비밀번호 재설정 인증코드 생성 로직
+    @Transactional
+    public void sendResetCode(String email) throws MessagingException {
+        // 1. 유저 확인 (Repository 사용)
+        userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("가입되지 않은 이메일입니다."));
+
+        // 2. 인증 코드 생성
+        String code = String.format("%06d", new Random().nextInt(1000000));
+
+        // 3. Redis 저장 (5분 유효)
+        redisTemplate.opsForValue().set("PWD_CODE:" + email, code, Duration.ofMinutes(5));
+
+        // 4. 메일 발송 의뢰 (MailService 호출)
+        mailService.sendVerificationCode(email, code);
+    }
+
+    // 비밀번호 재설정 인증코드 대조 로직
+    public String verifyResetCode(String email, String code) {
+        String savedCode = redisTemplate.opsForValue().get("PWD_CODE:" + email);
+
+        if (savedCode == null || !savedCode.equals(code)) {
+            throw new RuntimeException("인증 코드가 일치하지 않거나 만료되었습니다.");
+        }
+
+        // 인증 성공 시, 다음 단계(비밀번호 변경)를 위한 임시 토큰 발행
+        String resetToken = UUID.randomUUID().toString();
+        redisTemplate.opsForValue().set("RESET_TOKEN:" + resetToken, email, Duration.ofMinutes(3));
+
+        return resetToken;
+    }
+
+    @Transactional
+    public void resetPassword(String resetToken, String newPassword) {
+        // 1. 임시 토큰으로 이메일 추출
+        String email = redisTemplate.opsForValue().get("RESET_TOKEN:" + resetToken);
+        if (email == null) {
+            throw new RuntimeException("유효하지 않은 접근입니다.");
+        }
+
+        // 2. 실제 비밀번호 변경
+        Users user = userRepository.findByEmail(email).orElseThrow();
+        user.updatePassword(passwordEncoder.encode(newPassword));
+
+        // 3. 사용 완료된 토큰 삭제
+        redisTemplate.delete("RESET_TOKEN:" + resetToken);
     }
 }

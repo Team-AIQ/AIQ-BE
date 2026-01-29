@@ -1,5 +1,6 @@
 package cmc.aiq.aiq.controller;
 
+import cmc.aiq.aiq.domain.Users;
 import cmc.aiq.aiq.dto.LoginRequestDTO;
 import cmc.aiq.aiq.dto.SignUpRequestDTO;
 import cmc.aiq.aiq.dto.TokenResponseDTO;
@@ -62,5 +63,22 @@ public class AuthController {
         } else {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("만료되었거나 유효하지 않은 토큰입니다.");
         }
+    }
+
+    @PostMapping("/password/code-request")
+    public ResponseEntity<Void> requestResetCode(@RequestParam String email) throws MessagingException {
+        authService.sendResetCode(email);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/password/verify")
+    public ResponseEntity<String> verifyCode(@RequestParam String email, @RequestParam String code) {
+        return ResponseEntity.ok(authService.verifyResetCode(email, code));
+    }
+
+    @PatchMapping("/password/reset")
+    public ResponseEntity<Void> resetPassword(@RequestParam String resetToken, @RequestParam String newPassword) {
+        authService.resetPassword(resetToken, newPassword);
+        return ResponseEntity.ok().build();
     }
 }
