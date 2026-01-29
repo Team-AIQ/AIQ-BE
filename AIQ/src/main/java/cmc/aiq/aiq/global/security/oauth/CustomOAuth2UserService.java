@@ -13,6 +13,7 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.Map;
 
 @Service
@@ -36,6 +37,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         String nickname = extractNickname(attributes, registrationId);
         String providerId = extractProviderId(attributes, registrationId);
         AuthProvider authProvider = AuthProvider.valueOf(registrationId.toUpperCase());
+        LocalDateTime time = LocalDateTime.now();
 
 
         Users user = userRepository.findByProviderAndProviderId(authProvider, providerId)
@@ -47,6 +49,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                         .nickname(nickname)
                         .provider(authProvider)
                         .providerId(providerId)
+                        .initialLoginAt(time)
                         .currentCredits(50L)
                         .build()));
 

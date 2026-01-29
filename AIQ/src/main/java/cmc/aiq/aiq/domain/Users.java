@@ -16,6 +16,7 @@ import java.time.LocalDateTime;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @EntityListeners(AuditingEntityListener.class)
+
 public class Users {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -61,12 +62,13 @@ public class Users {
 
     @Builder
     public Users(String email, String password, String nickname,
-                 AuthProvider provider, String providerId, Long currentCredits) {
+                 AuthProvider provider, String providerId, Long currentCredits , LocalDateTime initialLoginAt) {
         this.email = email;
         this.password = password;
         this.nickname = nickname;
         this.provider = provider;
         this.providerId = providerId;
+        this.initialLoginAt = initialLoginAt;
         this.currentCredits = (currentCredits != null) ? currentCredits : 0L;
     }
     public void updateRefreshToken(String refreshToken) {
@@ -76,9 +78,8 @@ public class Users {
         this.nickname = nickname;
         return this;
     }
-    public Users updateInitialLoginAt(LocalDateTime time){
+    public void updateInitialLoginAt(LocalDateTime time){
         this.initialLoginAt = time;
-        return this;
     }
     public void updatePassword(String password){
         this.password = password;
