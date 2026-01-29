@@ -2,7 +2,7 @@ package cmc.aiq.aiq.global.security.oauth;
 
 import cmc.aiq.aiq.global.security.jwt.JwtTokenProvider;
 import cmc.aiq.aiq.domain.Users;
-import cmc.aiq.aiq.repository.UserRepository;
+import cmc.aiq.aiq.repository.UsersRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +21,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
     private final JwtTokenProvider jwtTokenProvider;
-    private final UserRepository userRepository;
+    private final UsersRepository usersRepository;
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
@@ -33,7 +33,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         // 실제 운영 시에는 소셜별 이메일 추출 로직을 거쳐야 함
         String email = extractEmail(oAuth2User , registrationId);
 
-        Users user = userRepository.findByEmail(email).orElseThrow();
+        Users user = usersRepository.findByEmail(email).orElseThrow();
         boolean isRememberMe = true;
 
         String accessToken = jwtTokenProvider.createAccessToken(user.getId(), user.getEmail());
@@ -45,7 +45,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         }
 
         user.updateRefreshToken(refreshToken);
-        userRepository.save(user);
+        usersRepository.save(user);
 
         // 프론트엔드(Next.js 등)로 토큰을 전달하며 리다이렉트
         String targetUrl = UriComponentsBuilder.fromUriString("http://localhost:3000/oauth/callback")

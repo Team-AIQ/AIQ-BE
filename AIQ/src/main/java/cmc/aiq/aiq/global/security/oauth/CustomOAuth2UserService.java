@@ -2,16 +2,14 @@ package cmc.aiq.aiq.global.security.oauth;
 
 import cmc.aiq.aiq.domain.AuthProvider;
 import cmc.aiq.aiq.domain.Users;
-import cmc.aiq.aiq.dto.TokenResponseDTO;
 import cmc.aiq.aiq.global.security.jwt.JwtTokenProvider;
-import cmc.aiq.aiq.repository.UserRepository;
+import cmc.aiq.aiq.repository.UsersRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -20,7 +18,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
-    private final UserRepository userRepository;
+    private final UsersRepository usersRepository;
     private final JwtTokenProvider jwtTokenProvider;
 
     @Override
@@ -40,11 +38,11 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         LocalDateTime time = LocalDateTime.now();
 
 
-        Users user = userRepository.findByProviderAndProviderId(authProvider, providerId)
+        Users user = usersRepository.findByProviderAndProviderId(authProvider, providerId)
                 .map(existingUser -> {
                     return existingUser.updateSocialInfo(nickname);
                 })
-                .orElseGet(() -> userRepository.save(Users.builder()
+                .orElseGet(() -> usersRepository.save(Users.builder()
                         .email(email)
                         .nickname(nickname)
                         .provider(authProvider)

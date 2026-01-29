@@ -6,7 +6,7 @@ import cmc.aiq.aiq.domain.AuthProvider;
 import cmc.aiq.aiq.domain.Users;
 import cmc.aiq.aiq.dto.LoginRequestDTO;
 import cmc.aiq.aiq.dto.TokenResponseDTO;
-import cmc.aiq.aiq.repository.UserRepository;
+import cmc.aiq.aiq.repository.UsersRepository;
 import cmc.aiq.aiq.service.Mail.MailService;
 import jakarta.mail.MessagingException;
 import jakarta.transaction.Transactional;
@@ -26,7 +26,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService{
 
-    private final UserRepository userRepository;
+    private final UsersRepository usersRepository;
     private final BCryptPasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final MailService mailService;
@@ -34,7 +34,7 @@ public class AuthServiceImpl implements AuthService{
 
     @Transactional
     public void signUp(SignUpRequestDTO request){
-        if(userRepository.existsByEmail(request.getEmail())) throw new RuntimeException("이미 존재하는 이메일입니다.");
+        if(usersRepository.existsByEmail(request.getEmail())) throw new RuntimeException("이미 존재하는 이메일입니다.");
 
         Users user = Users.builder()
                 .email(request.getEmail())
@@ -43,12 +43,12 @@ public class AuthServiceImpl implements AuthService{
                 .provider(AuthProvider.EMAIL)
                 .currentCredits(50L)
                 .build();
-        userRepository.save(user);
+        usersRepository.save(user);
     }
 
     @Transactional
     public TokenResponseDTO login(LoginRequestDTO loginrequestDTO) {
-        Users user = userRepository.findByEmail(loginrequestDTO.getEmail())
+        Users user = usersRepository.findByEmail(loginrequestDTO.getEmail())
                 .orElseThrow(() -> new RuntimeException("가입되지 않은 이메일입니다."));
 
         if (!passwordEncoder.matches(loginrequestDTO.getPassword(), user.getPassword())) {
@@ -77,7 +77,7 @@ public class AuthServiceImpl implements AuthService{
 
         // 2. DB에 저장된 토큰과 일치하는지 확인
         String email = jwtTokenProvider.getUserEmail(refreshToken);
-        Users user = userRepository.findByEmail(email)
+        Users user = usersRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
 
         if (!user.getRefreshToken().equals(refreshToken)) {
@@ -100,7 +100,7 @@ public class AuthServiceImpl implements AuthService{
         String email = jwtTokenProvider.getUserEmail(refreshToken);
 
         // 3. DB에서 사용자 조회
-        Users user = userRepository.findByEmail(email)
+        Users user = usersRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
 
         // 4. DB에 저장된 리프레시 토큰과 일치하는지 확인
@@ -132,7 +132,7 @@ public class AuthServiceImpl implements AuthService{
     @Transactional
     public void sendResetCode(String email) throws MessagingException {
         // 1. 유저 확인 (Repository 사용)
-        userRepository.findByEmail(email)
+        usersRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("가입되지 않은 이메일입니다."));
 
         // 2. 인증 코드 생성
@@ -169,7 +169,7 @@ public class AuthServiceImpl implements AuthService{
         }
 
         // 2. 실제 비밀번호 변경
-        Users user = userRepository.findByEmail(email).orElseThrow();
+        Users user = usersRepository.findByEmail(email).orElseThrow();
         user.updatePassword(passwordEncoder.encode(newPassword));
 
         // 3. 사용 완료된 토큰 삭제
