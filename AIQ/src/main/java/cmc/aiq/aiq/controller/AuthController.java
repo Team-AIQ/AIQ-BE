@@ -24,7 +24,7 @@ public class AuthController {
 
     @PostMapping("/signup")
     public String signUp(@RequestBody SignUpRequestDTO request){
-        authService.signUp(request.getEmail(), request.getPassword(), request.getNickname());
+        authService.signUp(request);
         return "회원가입 성공!";
     }
 

@@ -1,5 +1,6 @@
 package cmc.aiq.aiq.service;
 
+import cmc.aiq.aiq.dto.SignUpRequestDTO;
 import cmc.aiq.aiq.global.security.jwt.JwtTokenProvider;
 import cmc.aiq.aiq.domain.AuthProvider;
 import cmc.aiq.aiq.domain.Users;
@@ -32,13 +33,13 @@ public class AuthServiceImpl implements AuthService{
     private final StringRedisTemplate redisTemplate;
 
     @Transactional
-    public void signUp(String email, String password, String nickname){
-        if(userRepository.existsByEmail(email)) throw new RuntimeException("이미 존재하는 이메일입니다.");
+    public void signUp(SignUpRequestDTO request){
+        if(userRepository.existsByEmail(request.getEmail())) throw new RuntimeException("이미 존재하는 이메일입니다.");
 
         Users user = Users.builder()
-                .email(email)
-                .password(passwordEncoder.encode(password))
-                .nickname(nickname)
+                .email(request.getEmail())
+                .password(passwordEncoder.encode(request.getPassword()))
+                .nickname(request.getNickname())
                 .provider(AuthProvider.EMAIL)
                 .currentCredits(50L)
                 .build();

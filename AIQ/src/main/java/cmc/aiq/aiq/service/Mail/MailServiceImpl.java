@@ -7,6 +7,7 @@ import lombok.extern.log4j.Log4j2;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -20,6 +21,7 @@ public class MailServiceImpl implements MailService {
     private final JavaMailSender mailSender;
     private final StringRedisTemplate redisTemplate;
 
+    @Async
     // 이메일 인증 메일 발송
     @Override
     public void sendMagicLink(String email) throws MessagingException {
