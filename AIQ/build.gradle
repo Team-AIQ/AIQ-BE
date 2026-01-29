@@ -41,6 +41,8 @@ dependencies {
     // DB 및 유틸리티
     compileOnly 'org.projectlombok:lombok'
     runtimeOnly 'org.postgresql:postgresql'
+    // JSONB 처리를 위한 의존성 (Hibernate 6은 기본 지원하지만, 유틸기가 있으면 편함)
+    implementation 'io.hypersistence:hypersistence-utils-hibernate-63:3.7.0'
     annotationProcessor 'org.projectlombok:lombok'
 
     // JWT 인증 (0.11.5 버전)
