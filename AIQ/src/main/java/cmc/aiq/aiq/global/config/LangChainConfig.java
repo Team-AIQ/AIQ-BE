@@ -11,13 +11,15 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 
 @Configuration
 @RequiredArgsConstructor
 public class LangChainConfig {
     private final ModelsRepository modelsRepository;
 
-    @Bean
+    @Bean(name = "gptModel")
+    @Primary
     public ChatLanguageModel gptModel(@Value("${openai.api.key}") String apiKey) {
         // DB에서 'GPT'라는 이름의 모델 정보를 찾습니다.
         String version = modelsRepository.findByName("GPT")
@@ -31,7 +33,7 @@ public class LangChainConfig {
     }
 
     // 2. Gemini (Google AI)
-    @Bean
+    @Bean(name = "geminiModel")
     public ChatLanguageModel geminiModel(@Value("${google.api.key}") String apiKey) {
         String version = getModelVersion("Gemini", "gemini-2.5-flash");
         return GoogleAiGeminiChatModel.builder()
@@ -42,7 +44,7 @@ public class LangChainConfig {
 
     // 3. Perplexity 모델 (sonar)
     // Perplexity는 OpenAI 호환 API를 사용하므로 baseUrl만 바꿔주면 됩니다!
-    @Bean
+    @Bean(name = "perplexityModel")
     public ChatLanguageModel perplexityModel(@Value("${perplexity.api.key}") String apiKey) {
         String version = getModelVersion("Perplexity", "sonar");
         return OpenAiChatModel.builder()

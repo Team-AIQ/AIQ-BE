@@ -3,6 +3,7 @@ package cmc.aiq.aiq.global.security.jwt;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
+import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -18,6 +19,7 @@ import java.util.Date;
 import java.util.stream.Collectors;
 
 @Component
+@Log4j2
 public class JwtTokenProvider {
     @Value("${jwt.secret}")
     private String secretKey;
@@ -40,20 +42,21 @@ public class JwtTokenProvider {
     }
 
     // Access Token 생성
-    public String createAccessToken(Long userId, String email) {
-        return createToken(userId, email, accessExpiration , false);
+    public String createAccessToken(Long userId, String email, String role) {
+        return createToken(userId, email, accessExpiration , false , role);
     }
 
     // Refresh Token 생성
-    public String createRefreshToken(Long userId, String email, boolean isRememberMe) {
+    public String createRefreshToken(Long userId, String email , String role, boolean isRememberMe) {
         long validity = isRememberMe ? rememberMeExpiration : refreshExpiration;
-        return createToken(userId, email, validity , isRememberMe);
+        return createToken(userId, email, validity , isRememberMe , role);
     }
 
     // 1. 토큰 생성 (이메일과 ID를 담아 암호화)
-    private String createToken(Long userId, String email, long validity , boolean isRememberMe) {
+    private String createToken(Long userId, String email, long validity , boolean isRememberMe, String role) {
         Claims claims = Jwts.claims().setSubject(email);
         claims.put("userId", userId);
+        claims.put("auth", role);
         claims.put("isRememberMe", isRememberMe);
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + validity);
@@ -83,15 +86,22 @@ public class JwtTokenProvider {
 
     public Authentication getAuthentication(String token) {
         Claims claims = parseClaims(token);
-
+        log.info("====== JWT CLAIMS DEBUG ======");
+        log.info("전체 클레임: " + claims.toString());
+        log.info("auth 값: " + claims.get("auth"));
+        log.info("==============================");
         if (claims.get("auth") == null) {
             throw new RuntimeException("권한 정보가 없는 토큰입니다.");
         }
 
-        // 클레임에서 권한 정보 추출
+
         Collection<? extends GrantedAuthority> authorities =
                 Arrays.stream(claims.get("auth").toString().split(","))
-                        .map(SimpleGrantedAuthority::new)
+                        .map(role -> {
+                            // 이미 ROLE_로 시작하면 그대로 쓰고, 아니면 붙여줍니다.
+                            String roleName = role.startsWith("ROLE_") ? role : "ROLE_" + role;
+                            return new SimpleGrantedAuthority(roleName);
+                        })
                         .collect(Collectors.toList());
 
         // Spring Security의 User 객체 생성 (비밀번호는 보안상 빈 값)

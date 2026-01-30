@@ -7,7 +7,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 
 @SpringBootApplication
 @EnableJpaAuditing
-@PropertySource("classpath:application-secrets.properties")
+@PropertySource("classpath:application-secret.properties")
 public class AiqApplication {
 
     public static void main(String[] args) {

@@ -29,20 +29,21 @@ public class Users {
     private String password;
 
     @Column(nullable = false, length = 50)
-    private String nickname; // 서비스 내 활동 닉네임
+    private String nickname;
 
     @Column(name = "current_credits", nullable = false)
-    private Long currentCredits = 0L; // 기본 크레딧 설정
+    private Long currentCredits = 0L;
 
-    // --- 소셜 로그인 연동 필드 ---
+    @Enumerated(EnumType.STRING)
+    private UserRole role = UserRole.ROLE_USER;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private AuthProvider provider; // EMAIL, KAKAO, NAVER, GOOGLE
 
-    @Column(name = "provider_id", nullable = true) // 이메일 가입자는 null이 들어가므로 nullable 허용
+    @Column(name = "provider_id", nullable = true)
     private String providerId;
 
-    // --- 시간 기록 필드 ---
     @CreatedDate
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -52,7 +53,7 @@ public class Users {
     private LocalDateTime updatedAt;
 
     @Column(name = "deleted_at")
-    private LocalDateTime deletedAt; // 계정 삭제 시 시각 기록 (Soft Delete용)
+    private LocalDateTime deletedAt;
 
     @Column(name = "refresh_token")
     private String refreshToken;

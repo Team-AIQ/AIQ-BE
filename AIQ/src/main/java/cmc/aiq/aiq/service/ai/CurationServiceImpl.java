@@ -3,19 +3,20 @@ package cmc.aiq.aiq.service.ai;
 import cmc.aiq.aiq.domain.CategoryAttributes;
 import cmc.aiq.aiq.domain.Queries;
 import cmc.aiq.aiq.domain.Users;
-import cmc.aiq.aiq.dto.Quration.CategoryAttributesDTO;
-import cmc.aiq.aiq.dto.Quration.CategoryDistanceResult;
-import cmc.aiq.aiq.dto.Quration.CurationRequestDTO;
-import cmc.aiq.aiq.dto.Quration.CurationResponseDTO;
+import cmc.aiq.aiq.dto.Quration.*;
 import cmc.aiq.aiq.repository.CategoryAttributesRepository;
 import cmc.aiq.aiq.repository.QueriesRepository;
 import cmc.aiq.aiq.repository.UsersRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
@@ -25,9 +26,10 @@ import java.util.Optional;
 public class CurationServiceImpl implements CurationService{
     private final QueriesRepository queriesRepository;
     private final CategoryAttributesRepository categoryRepository;
-    private final EmbeddingModel embeddingModel; // DB 기반 설정 적용됨
+    private final EmbeddingModel embeddingModel;
     private final CurationAgent curationAgent;   // 이제 정상 작동하는 AI 비서
     private final UsersRepository usersRepository;
+    private final ObjectMapper objectMapper;
 
     private static final double MATCH_THRESHOLD = 0.35;
 
@@ -53,27 +55,56 @@ public class CurationServiceImpl implements CurationService{
         String message;
         String categoryName;
 
-        // 4. 매칭 성공 여부 판단 (Threshold 로직)
         if (closestCategory.isPresent() && closestCategory.get().getDistance() <= MATCH_THRESHOLD) {
-            CategoryDistanceResult closest = closestCategory.get(); // 꺼내기
-
-            log.info("[2-A] 카테고리 매칭 성공: {} (Distance: {})",
-                    closest.getDisplayName(), closest.getDistance());
-
+            CategoryDistanceResult closest = closestCategory.get();
             categoryName = closest.getCategoryName();
-            message = String.format("[%s] 카테고리에 최적화된 질문 세트입니다.", closest.getDisplayName());
+            List<CategoryAttributesDTO> attributes;
+            try {
+                attributes = objectMapper.readValue(closest.getAttributes(),
+                        new TypeReference<List<CategoryAttributesDTO>>() {});
+            } catch (JsonProcessingException e) {
+                log.error("JSON 파싱 중 에러 발생: {}", e.getMessage());
+                throw new RuntimeException("카테고리 데이터를 읽는 중 오류가 발생했습니다.");
+            }
 
-            // AI에게 기존 질문 정제 요청 (꺼낸 객체에서 attributes 전달)
-            curationQuestions = curationAgent.refineQuestions(request.getQuestion(), closest.getAttributes());
+            CurationResult result = curationAgent.refineExisting(request.getQuestion(), attributes);
+            curationQuestions = result.getQuestions();
+            message = String.format("[%s] 카테고리에 최적화된 질문입니다.", closest.getDisplayName());
         } else {
-            double distance = closestCategory.map(CategoryDistanceResult::getDistance).orElse(1.0);
-            log.info("[2-B] 매칭 실패 (Distance: {}). AI 동적 생성 모드 진입", distance);
+            AiCategoryAnalysisDTO analysis = curationAgent.createNewCategory(request.getQuestion());
+            categoryName = analysis.getCategoryName();
 
-            categoryName = "CUSTOM";
-            message = "적절한 카테고리를 찾지 못해 AI가 맞춤형 질문을 생성했습니다.";
+            var existingCategory = categoryRepository.findSimpleByCategoryName(categoryName);
 
-            // AI에게 새로운 질문 세트 생성 요청
-            curationQuestions = curationAgent.generateNewQuestions(request.getQuestion());
+            if (existingCategory.isPresent()) {
+                var category = existingCategory.get();
+
+                List<CategoryAttributesDTO> storedAttributes = category.attributes();
+
+                CurationResult refined = curationAgent.refineExisting(request.getQuestion(), storedAttributes);
+
+                curationQuestions = refined.getQuestions();
+                message = String.format("[%s] 카테고리로 안내해 드릴게요.", category.displayName());
+
+                log.info("유사도는 낮았지만 기존 카테고리({}) 명칭이 일치하여 재사용합니다.", categoryName);
+            } else {
+                curationQuestions = analysis.getQuestions();
+                message = "새로운 쇼핑 분야를 발견하여 맞춤 질문을 구성했습니다.";
+
+                float[] newCategoryVector = embeddingModel.embed(analysis.getDisplayName()).content().vector();
+
+                try {
+                    categoryRepository.insertCategoryWithVector(
+                            analysis.getCategoryName(),
+                            analysis.getDisplayName(),
+                            Arrays.toString(newCategoryVector),
+                            objectMapper.writeValueAsString(curationQuestions),
+                            true
+                    );
+                } catch (JsonProcessingException e) {
+                    throw new RuntimeException("카테고리 저장 중 데이터 변환 에러!");
+                }
+            }
         }
 
         log.info("[3] 큐레이션 질문 생성 완료. QueryID: {}", query.getId());

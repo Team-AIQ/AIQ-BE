@@ -36,8 +36,8 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         Users user = usersRepository.findByEmail(email).orElseThrow();
         boolean isRememberMe = true;
 
-        String accessToken = jwtTokenProvider.createAccessToken(user.getId(), user.getEmail());
-        String refreshToken = jwtTokenProvider.createRefreshToken(user.getId(), user.getEmail(), isRememberMe);
+        String accessToken = jwtTokenProvider.createAccessToken(user.getId(), user.getEmail(), user.getRole().name());
+        String refreshToken = jwtTokenProvider.createRefreshToken(user.getId(), user.getEmail(), user.getRole().name() , isRememberMe);
 
         if (user.getInitialLoginAt() == null ||
                 user.getInitialLoginAt().plusDays(90).isBefore(LocalDateTime.now())) {

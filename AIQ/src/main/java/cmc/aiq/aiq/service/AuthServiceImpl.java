@@ -59,8 +59,8 @@ public class AuthServiceImpl implements AuthService{
             user.updateInitialLoginAt(LocalDateTime.now()); // 지성님이 만드신 메서드 사용!
         }
         // 두 개의 토큰 생성
-        String accessToken = jwtTokenProvider.createAccessToken(user.getId(), user.getEmail());
-        String refreshToken = jwtTokenProvider.createRefreshToken(user.getId(), user.getEmail(), loginrequestDTO.isRememberMe());
+        String accessToken = jwtTokenProvider.createAccessToken(user.getId(), user.getEmail(), user.getRole().name());
+        String refreshToken = jwtTokenProvider.createRefreshToken(user.getId(), user.getEmail(),  user.getRole().name() , loginrequestDTO.isRememberMe());
 
         // DB에 Refresh Token 업데이트
         user.updateRefreshToken(refreshToken);
@@ -85,7 +85,7 @@ public class AuthServiceImpl implements AuthService{
         }
 
         // 3. 새로운 Access Token 발행
-        return jwtTokenProvider.createAccessToken(user.getId(), user.getEmail());
+        return jwtTokenProvider.createAccessToken(user.getId(), user.getEmail() ,  user.getRole().name());
     }
 
     @Override
@@ -119,8 +119,8 @@ public class AuthServiceImpl implements AuthService{
 
         boolean isRememberMe = jwtTokenProvider.getIsRememberMe(refreshToken);
         // 5. 새로운 토큰 쌍 생성
-        String newAccessToken = jwtTokenProvider.createAccessToken(user.getId(), user.getEmail());
-        String newRefreshToken = jwtTokenProvider.createRefreshToken(user.getId(), user.getEmail() , isRememberMe);
+        String newAccessToken = jwtTokenProvider.createAccessToken(user.getId(), user.getEmail(),  user.getRole().name());
+        String newRefreshToken = jwtTokenProvider.createRefreshToken(user.getId(), user.getEmail() ,  user.getRole().name(), isRememberMe);
 
         // 6. DB의 리프레시 토큰 업데이트 (Rotation 전략)
         user.updateRefreshToken(newRefreshToken);

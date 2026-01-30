@@ -11,5 +11,6 @@ public interface CategoryDistanceResult {
 
     // 이 부분이 핵심! 우리가 SQL에서 'as distance'라고 이름 붙인 값이 여기 들어옵니다.
     Double getDistance();
-    List<CategoryAttributesDTO> getAttributes();
+//    List<CategoryAttributesDTO> getAttributes();
+    String getAttributes();
 }
