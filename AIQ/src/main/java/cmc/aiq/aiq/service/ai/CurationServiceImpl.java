@@ -1,10 +1,12 @@
 package cmc.aiq.aiq.service.ai;
 
 import cmc.aiq.aiq.domain.CategoryAttributes;
+import cmc.aiq.aiq.domain.CurationSessions;
 import cmc.aiq.aiq.domain.Queries;
 import cmc.aiq.aiq.domain.Users;
 import cmc.aiq.aiq.dto.Quration.*;
 import cmc.aiq.aiq.repository.CategoryAttributesRepository;
+import cmc.aiq.aiq.repository.CurationSessionsRepository;
 import cmc.aiq.aiq.repository.QueriesRepository;
 import cmc.aiq.aiq.repository.UsersRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -30,6 +32,7 @@ public class CurationServiceImpl implements CurationService{
     private final CurationAgent curationAgent;   // 이제 정상 작동하는 AI 비서
     private final UsersRepository usersRepository;
     private final ObjectMapper objectMapper;
+    private final CurationSessionsRepository curationSessionsRepository;
 
     private static final double MATCH_THRESHOLD = 0.35;
 
@@ -106,8 +109,29 @@ public class CurationServiceImpl implements CurationService{
                 }
             }
         }
-
+        saveInitialSession(user, query, curationQuestions);
         log.info("[3] 큐레이션 질문 생성 완료. QueryID: {}", query.getId());
         return new CurationResponseDTO(query.getId(), categoryName, curationQuestions, message);
+    }
+    private void saveInitialSession(Users user, Queries query, List<CategoryAttributesDTO> questions) {
+        log.info("CurationSession 초기 상태 저장 시작");
+
+        // CategoryAttributesDTO -> CurationUserAnswerDTO 변환
+        // 지성님의 DTO 구조(display_label, question_text, selected_answer)에 맞게 매핑합니다.
+        List<CurationUserAnswerDTO> sessionResults = questions.stream()
+                .map(q -> new CurationUserAnswerDTO(
+                        q.getDisplay_label(),
+                        q.getQuestion_text(),
+                        q.getUser_answer() // AI가 추출한 대답을 selected_answer로 저장
+                ))
+                .toList();
+
+        CurationSessions session = CurationSessions.builder()
+                .user(user)
+                .query(query)
+                .curationResults(sessionResults)
+                .build();
+
+        curationSessionsRepository.save(session);
     }
 }
