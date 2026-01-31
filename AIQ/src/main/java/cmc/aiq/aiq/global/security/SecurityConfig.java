@@ -2,6 +2,7 @@ package cmc.aiq.aiq.global.security;
 
 import cmc.aiq.aiq.global.security.jwt.JwtAuthenticationFilter;
 import cmc.aiq.aiq.global.security.jwt.JwtTokenProvider;
+import cmc.aiq.aiq.global.security.oauth.CustomAuthorizationRequestResolver;
 import cmc.aiq.aiq.global.security.oauth.CustomOAuth2UserService;
 import cmc.aiq.aiq.global.security.oauth.OAuth2SuccessHandler;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,7 @@ public class SecurityConfig {
     private final JwtTokenProvider jwtTokenProvider;
     private final CustomOAuth2UserService customOAuth2UserService;
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
+    private final CustomAuthorizationRequestResolver customAuthorizationRequestResolver;
 
     @Bean
     public BCryptPasswordEncoder passwordEncoder(){
@@ -55,6 +57,10 @@ public class SecurityConfig {
 //                        .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
 //                )
                 .oauth2Login(oauth2 -> oauth2
+                        .authorizationEndpoint(auth -> auth
+                                // [추가] 우리가 만든 리졸버를 등록합니다.
+                                .authorizationRequestResolver(customAuthorizationRequestResolver)
+                        )
                         .userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService))
                         .successHandler(oAuth2SuccessHandler)
                 );

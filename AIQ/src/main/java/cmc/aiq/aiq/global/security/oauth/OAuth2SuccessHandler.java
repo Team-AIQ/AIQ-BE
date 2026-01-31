@@ -39,19 +39,39 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         String accessToken = jwtTokenProvider.createAccessToken(user.getId(), user.getEmail(), user.getRole().name());
         String refreshToken = jwtTokenProvider.createRefreshToken(user.getId(), user.getEmail(), user.getRole().name() , isRememberMe);
 
-        if (user.getInitialLoginAt() == null ||
-                user.getInitialLoginAt().plusDays(90).isBefore(LocalDateTime.now())) {
-            user.updateInitialLoginAt(LocalDateTime.now());
+//        if (user.getInitialLoginAt() == null ||
+//                user.getInitialLoginAt().plusDays(90).isBefore(LocalDateTime.now())) {
+//            user.updateInitialLoginAt(LocalDateTime.now());
+//        }
+//
+//        user.updateRefreshToken(refreshToken);
+//        usersRepository.save(user);
+//
+//        // 프론트엔드(Next.js 등)로 토큰을 전달하며 리다이렉트
+//        String targetUrl = UriComponentsBuilder.fromUriString("http://localhost:3000/oauth/callback")
+//                .queryParam("accessToken", accessToken)
+//                .queryParam("refreshToken", refreshToken)
+//                .build().toUriString();
+        String origin = (String) request.getSession().getAttribute("login_origin");
+
+        // 2. 목적지 결정
+        String targetUrl;
+        if ("app".equals(origin)) {
+            // [앱 전용 딥링크]
+            targetUrl = UriComponentsBuilder.fromUriString("aiq://oauth-callback")
+                    .queryParam("accessToken", accessToken)
+                    .queryParam("refreshToken", refreshToken)
+                    .build().toUriString();
+        } else {
+            // [웹 전용 주소]
+            targetUrl = UriComponentsBuilder.fromUriString("http://localhost:3000/oauth/callback")
+                    .queryParam("accessToken", accessToken)
+                    .queryParam("refreshToken", refreshToken)
+                    .build().toUriString();
         }
 
-        user.updateRefreshToken(refreshToken);
-        usersRepository.save(user);
-
-        // 프론트엔드(Next.js 등)로 토큰을 전달하며 리다이렉트
-        String targetUrl = UriComponentsBuilder.fromUriString("http://localhost:3000/oauth/callback")
-                .queryParam("accessToken", accessToken)
-                .queryParam("refreshToken", refreshToken)
-                .build().toUriString();
+        // 세션 청소 (선택 사항)
+        request.getSession().removeAttribute("login_origin");
 
         getRedirectStrategy().sendRedirect(request, response, targetUrl);
     }
