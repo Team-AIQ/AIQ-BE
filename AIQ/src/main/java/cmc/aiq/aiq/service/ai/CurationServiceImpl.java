@@ -54,6 +54,25 @@ public class CurationServiceImpl implements CurationService{
 
         Optional<CategoryDistanceResult> closestCategory = categoryRepository.findClosestCategory(vector);
 
+        if (closestCategory.isPresent()) {
+            double actualDistance = closestCategory.get().getDistance();
+            String catName = closestCategory.get().getDisplayName();
+
+            log.info(">>>> [유사도 분석 결과] <<<<");
+            log.info("검색된 가장 가까운 카테고리: {}", catName);
+            log.info("측정된 거리(Distance): {}", String.format("%.4f", actualDistance));
+            log.info("설정된 임계치(Threshold): {}", MATCH_THRESHOLD);
+
+            if (actualDistance <= MATCH_THRESHOLD) {
+                log.info("결과: [MATCH] 임계치 이내입니다. 기존 카테고리를 사용합니다.");
+            } else {
+                log.info("결과: [MISMATCH] 임계치를 초과했습니다. AI 분석(신규 생성)으로 넘어갑니다.");
+            }
+        } else {
+            log.info(">>>> [유사도 분석 결과] DB에 비교할 카테고리가 전혀 없습니다.");
+        }
+        // --- 유사도 거리 확인 로그 끝 ---
+
         List<CategoryAttributesDTO> curationQuestions;
         String message;
         String categoryName;
@@ -75,6 +94,7 @@ public class CurationServiceImpl implements CurationService{
             message = String.format("[%s] 카테고리에 최적화된 질문입니다.", closest.getDisplayName());
         } else {
             AiCategoryAnalysisDTO analysis = curationAgent.createNewCategory(request.getQuestion());
+            log.info("카테고리를 찾지 못했습니다. 새로운 카테고리를 생성합니다..");
             categoryName = analysis.getCategoryName();
 
             var existingCategory = categoryRepository.findSimpleByCategoryName(categoryName);

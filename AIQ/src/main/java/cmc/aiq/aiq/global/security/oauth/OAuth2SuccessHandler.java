@@ -32,8 +32,9 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
         // 실제 운영 시에는 소셜별 이메일 추출 로직을 거쳐야 함
         String email = extractEmail(oAuth2User , registrationId);
+        String providerId = extractProviderId(oAuth2User, registrationId);
 
-        Users user = usersRepository.findByEmail(email).orElseThrow();
+        Users user = usersRepository.findByProviderIdAndEmail(providerId,email).orElseThrow();
         boolean isRememberMe = true;
 
         String accessToken = jwtTokenProvider.createAccessToken(user.getId(), user.getEmail(), user.getRole().name());
@@ -54,6 +55,28 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
                 .build().toUriString();
 
         getRedirectStrategy().sendRedirect(request, response, targetUrl);
+    }
+
+    private String extractProviderId(OAuth2User oAuth2User, String registrationId) {
+        Map<String, Object> attributes = oAuth2User.getAttributes();
+
+        if ("google".equals(registrationId)) {
+            // 구글은 "sub" 키에 고유 ID가 들어있습니다.
+            return (String) attributes.get("sub");
+        }
+
+        if ("naver".equals(registrationId)) {
+            // 네이버는 response 맵 안에 "id"가 들어있습니다.
+            Map<String, Object> response = (Map<String, Object>) attributes.get("response");
+            return (String) response.get("id");
+        }
+
+        if ("kakao".equals(registrationId)) {
+            // 카카오는 최상위에 Long 타입의 "id"가 있습니다. String으로 변환하여 반환합니다.
+            return attributes.get("id").toString();
+        }
+
+        throw new IllegalArgumentException("지원하지 않는 소셜 로그인입니다: " + registrationId);
     }
 
     private String extractEmail(OAuth2User oAuth2User, String registrationId) {
