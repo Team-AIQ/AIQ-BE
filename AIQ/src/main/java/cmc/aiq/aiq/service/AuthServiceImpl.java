@@ -56,13 +56,12 @@ public class AuthServiceImpl implements AuthService{
         }
         if (user.getInitialLoginAt() == null ||
                 user.getInitialLoginAt().plusDays(90).isBefore(LocalDateTime.now())) {
-            user.updateInitialLoginAt(LocalDateTime.now()); // 지성님이 만드신 메서드 사용!
+            user.updateInitialLoginAt(LocalDateTime.now());
         }
         // 두 개의 토큰 생성
         String accessToken = jwtTokenProvider.createAccessToken(user.getId(), user.getEmail(), user.getRole().name());
         String refreshToken = jwtTokenProvider.createRefreshToken(user.getId(), user.getEmail(),  user.getRole().name() , loginrequestDTO.isRememberMe());
 
-        // DB에 Refresh Token 업데이트
         user.updateRefreshToken(refreshToken);
 
         return new TokenResponseDTO(accessToken, refreshToken);

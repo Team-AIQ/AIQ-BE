@@ -1,6 +1,7 @@
 package cmc.aiq.aiq.controller;
 
 import cmc.aiq.aiq.domain.Users;
+import cmc.aiq.aiq.dto.ApiResponse;
 import cmc.aiq.aiq.dto.LoginRequestDTO;
 import cmc.aiq.aiq.dto.SignUpRequestDTO;
 import cmc.aiq.aiq.dto.TokenResponseDTO;
@@ -23,62 +24,68 @@ public class AuthController {
     private final MailService mailService;
 
     @PostMapping("/signup")
-    public String signUp(@RequestBody SignUpRequestDTO request){
+    @Operation(summary = "회원가입")
+    public ResponseEntity<ApiResponse<Void>> signUp(@RequestBody SignUpRequestDTO request) {
         authService.signUp(request);
-        return "회원가입 성공!";
+        // 새로운 자원이 생성되었으므로 201 Created 사용
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(HttpStatus.CREATED, "회원가입 성공", null));
     }
 
     @PostMapping("/login")
-    @Operation(summary = "이메일 로그인", description = "이메일과 비밀번호로 Access/Refresh 토큰을 발급합니다.")
-    public ResponseEntity<TokenResponseDTO> login(@RequestBody LoginRequestDTO request) {
+    @Operation(summary = "이메일 로그인")
+    public ResponseEntity<ApiResponse<TokenResponseDTO>> login(@RequestBody LoginRequestDTO request) {
         TokenResponseDTO response = authService.login(request);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK, "로그인 성공", response));
     }
 
     @PostMapping("/refresh")
-    @Operation(summary = "토큰 재발급", description = "Refresh 토큰을 사용하여 새로운 Access/Refresh 토큰을 발급합니다.")
-    public ResponseEntity<TokenResponseDTO> refresh(@RequestHeader("Authorization-Refresh") String refreshToken) {
-        // 'Bearer ' 접두사가 붙어 올 경우를 대비해 잘라줍니다.
+    @Operation(summary = "토큰 재발급")
+    public ResponseEntity<ApiResponse<TokenResponseDTO>> refresh(@RequestHeader("Authorization-Refresh") String refreshToken) {
         String token = refreshToken.startsWith("Bearer ") ? refreshToken.substring(7) : refreshToken;
-
         TokenResponseDTO response = authService.refresh(token);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK, "토큰 재발급 성공", response));
     }
 
     @PostMapping("/email-request")
-    public ResponseEntity<String> requestMagicLink(@RequestParam String email) throws MessagingException {
+    @Operation(summary = "매직링크 요청")
+    public ResponseEntity<ApiResponse<Void>> requestMagicLink(@RequestParam String email) throws MessagingException {
         mailService.sendMagicLink(email);
-        return ResponseEntity.ok("인증 이메일이 발송되었습니다.");
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK, "인증 이메일이 발송되었습니다.", null));
     }
 
-    // 2. 매직 링크 클릭 시 처리 (GET 요청)
     @GetMapping("/verify-link")
-    public ResponseEntity<String> verifyMagicLink(@RequestParam String token) {
+    @Operation(summary = "매직링크 검증")
+    public ResponseEntity<ApiResponse<String>> verifyMagicLink(@RequestParam String token) {
         String email = mailService.verifyToken(token);
-
         if (email != null) {
-            // 여기서 해당 이메일을 '인증됨' 상태로 Redis에 잠깐 저장하거나,
-            // 바로 회원가입 프로세스로 리다이렉트 시킵니다.
-            return ResponseEntity.ok("인증 성공! 이메일: " + email);
+            return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK, "인증 성공", "인증된 이메일: " + email));
         } else {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("만료되었거나 유효하지 않은 토큰입니다.");
+            // 실패 시에도 규격을 맞춰서 401 반환
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.success(HttpStatus.UNAUTHORIZED, "만료되었거나 유효하지 않은 토큰입니다.", null));
         }
     }
 
     @PostMapping("/password/code-request")
-    public ResponseEntity<Void> requestResetCode(@RequestParam String email) throws MessagingException {
+    @Operation(summary = "비밀번호 재설정 코드 요청")
+    public ResponseEntity<ApiResponse<Void>> requestResetCode(@RequestParam String email) throws MessagingException {
         authService.sendResetCode(email);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK, "인증 코드가 발송되었습니다.", null));
     }
 
     @PostMapping("/password/verify")
-    public ResponseEntity<String> verifyCode(@RequestParam String email, @RequestParam String code) {
-        return ResponseEntity.ok(authService.verifyResetCode(email, code));
+    @Operation(summary = "비밀번호 코드 검증")
+    public ResponseEntity<ApiResponse<String>> verifyCode(@RequestParam String email, @RequestParam String code) {
+        String resetToken = authService.verifyResetCode(email, code);
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK, "코드 검증 완료", resetToken));
     }
 
     @PatchMapping("/password/reset")
-    public ResponseEntity<Void> resetPassword(@RequestParam String resetToken, @RequestParam String newPassword) {
+    @Operation(summary = "비밀번호 재설정")
+    public ResponseEntity<ApiResponse<Void>> resetPassword(@RequestParam String resetToken, @RequestParam String newPassword) {
         authService.resetPassword(resetToken, newPassword);
-        return ResponseEntity.ok().build();
+        // 수정 완료 후 200 OK 또는 204 No Content
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK, "비밀번호 재설정 완료", null));
     }
 }
