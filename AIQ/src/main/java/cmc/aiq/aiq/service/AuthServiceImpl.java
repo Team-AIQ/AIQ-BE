@@ -132,7 +132,7 @@ public class AuthServiceImpl implements AuthService{
     @Transactional
     public void sendResetCode(String email) throws MessagingException {
         // 1. 유저 확인 (Repository 사용)
-        usersRepository.findByEmail(email)
+        usersRepository.findByEmailAndProvider(email , AuthProvider.EMAIL)
                 .orElseThrow(() -> new RuntimeException("가입되지 않은 이메일입니다."));
 
         // 2. 인증 코드 생성
