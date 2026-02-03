@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class CurationUserAnswerDTO {
-    private String display_label;
-    private String question_text;
-    private String selected_answer;
+    private String displayLabel;
+    private String questionText;
+    private String selectedAnswer;
 }
