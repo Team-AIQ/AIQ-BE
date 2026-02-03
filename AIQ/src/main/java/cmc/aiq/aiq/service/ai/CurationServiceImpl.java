@@ -157,14 +157,17 @@ public class CurationServiceImpl implements CurationService{
 
     @Override
     public void saveUserAnswers(CurationSubmitRequestDTO request) {
-        // 1. queryId를 통해 연관된 세션 조회
+        log.info("대답 저장 요청 시작 - QueryID: {}, 답변 개수: {}",
+                request.getQueryId(),
+                (request.getAnswers() != null ? request.getAnswers().size() : 0));
         CurationSessions session = curationSessionsRepository.findByQueryId(request.getQueryId())
                 .orElseThrow(() -> new RuntimeException("해당 질문에 대한 큐레이션 세션을 찾을 수 없습니다."));
 
-        // 2. 답변 업데이트 실행
         session.updateResults(request.getAnswers());
+        log.info("업데이트 후 결과: {}", session.getCurationResults());
+        curationSessionsRepository.save(session);
 
-        // 3. @Transactional에 의해 자동 Flush (Dirty Checking)
+
         log.info("QueryID {}에 대한 사용자 답변 저장 완료", request.getQueryId());
     }
 }

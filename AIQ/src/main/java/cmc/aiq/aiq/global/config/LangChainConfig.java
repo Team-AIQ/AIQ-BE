@@ -35,7 +35,10 @@ public class LangChainConfig {
     // 2. Gemini (Google AI)
     @Bean(name = "geminiModel")
     public ChatLanguageModel geminiModel(@Value("${google.api.key}") String apiKey) {
-        String version = getModelVersion("Gemini", "gemini-2.5-flash");
+//        String version = getModelVersion("Gemini", "gemini-2.5-flash");
+        String version = modelsRepository.findByName("Gemini")
+                .map(Models::getVersion)
+                .orElse("gemini-2.5-flash"); // 혹시 DB에 없으면 기본값 사용
         return GoogleAiGeminiChatModel.builder()
                 .apiKey(apiKey)
                 .modelName(version)
@@ -46,7 +49,10 @@ public class LangChainConfig {
     // Perplexity는 OpenAI 호환 API를 사용하므로 baseUrl만 바꿔주면 됩니다!
     @Bean(name = "perplexityModel")
     public ChatLanguageModel perplexityModel(@Value("${perplexity.api.key}") String apiKey) {
-        String version = getModelVersion("Perplexity", "sonar");
+//        String version = getModelVersion("Perplexity", "sonar");
+        String version = modelsRepository.findByName("Perplexity")
+                .map(Models::getVersion)
+                .orElse("sonar"); // 혹시 DB에 없으면 기본값 사용
         return OpenAiChatModel.builder()
                 .baseUrl("https://api.perplexity.ai") // 퍼플렉시티 주소
                 .apiKey(apiKey)
@@ -57,7 +63,10 @@ public class LangChainConfig {
     // 4. OpenAI 임베딩 모델
     @Bean
     public EmbeddingModel embeddingModel(@Value("${openai.api.key}") String apiKey) {
-        String version = getModelVersion("OpenAI", "text-embedding-3-small");
+//        String version = getModelVersion("OpenAI", "text-embedding-3-small");
+        String version = modelsRepository.findByName("OpenAI")
+                .map(Models::getVersion)
+                .orElse("text-embedding-3-small"); // 혹시 DB에 없으면 기본값 사용
         return OpenAiEmbeddingModel.builder()
                 .apiKey(apiKey)
                 .modelName(version)

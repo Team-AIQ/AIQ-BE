@@ -1,6 +1,6 @@
 package cmc.aiq.aiq.repository;
 
-import cmc.aiq.aiq.domain.AuthProvider;
+import cmc.aiq.aiq.domain.ENUM.AuthProvider;
 import cmc.aiq.aiq.domain.Users;
 import org.springframework.data.jpa.repository.JpaRepository;
 

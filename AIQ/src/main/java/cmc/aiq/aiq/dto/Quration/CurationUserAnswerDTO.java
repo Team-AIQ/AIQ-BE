@@ -14,9 +14,9 @@ public class CurationUserAnswerDTO {
     // AI가 사용자 대답을 자동으로 채워준 후 CurationSessions에 사용자 대답을 저장할 때 쓰는 DTO
     private String displayLabel;
     private String questionText;
-    private String selectedAnswer;
+    private String userAnswer;
 
     public void updateSelectedAnswer(String answer) {
-        this.selectedAnswer = answer;
+        this.userAnswer = answer;
     }
 }

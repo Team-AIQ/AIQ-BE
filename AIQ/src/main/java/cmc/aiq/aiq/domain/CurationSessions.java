@@ -55,7 +55,7 @@ public class CurationSessions {
                     .findFirst()
                     .ifPresent(res -> {
                         // 사용자가 선택한 답변으로 업데이트
-                        res.updateSelectedAnswer(answer.getSelectedAnswer());
+                        res.updateSelectedAnswer(answer.getUserAnswer());
                     });
         }
     }
