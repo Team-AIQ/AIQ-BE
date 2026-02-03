@@ -140,9 +140,9 @@ public class CurationServiceImpl implements CurationService{
         // 지성님의 DTO 구조(display_label, question_text, selected_answer)에 맞게 매핑합니다.
         List<CurationUserAnswerDTO> sessionResults = questions.stream()
                 .map(q -> new CurationUserAnswerDTO(
-                        q.getDisplay_label(),
-                        q.getQuestion_text(),
-                        q.getUser_answer() // AI가 추출한 대답을 selected_answer로 저장
+                        q.getDisplayLabel(),
+                        q.getQuestionText(),
+                        q.getUserAnswer() // AI가 추출한 대답을 selected_answer로 저장
                 ))
                 .toList();
 
@@ -153,5 +153,18 @@ public class CurationServiceImpl implements CurationService{
                 .build();
 
         curationSessionsRepository.save(session);
+    }
+
+    @Override
+    public void saveUserAnswers(CurationSubmitRequestDTO request) {
+        // 1. queryId를 통해 연관된 세션 조회
+        CurationSessions session = curationSessionsRepository.findByQueryId(request.getQueryId())
+                .orElseThrow(() -> new RuntimeException("해당 질문에 대한 큐레이션 세션을 찾을 수 없습니다."));
+
+        // 2. 답변 업데이트 실행
+        session.updateResults(request.getAnswers());
+
+        // 3. @Transactional에 의해 자동 Flush (Dirty Checking)
+        log.info("QueryID {}에 대한 사용자 답변 저장 완료", request.getQueryId());
     }
 }

@@ -1,6 +1,7 @@
 package cmc.aiq.aiq.domain;
 
 import cmc.aiq.aiq.dto.Quration.CategoryAttributesDTO;
+import cmc.aiq.aiq.dto.Quration.CurationSubmitRequestDTO;
 import cmc.aiq.aiq.dto.Quration.CurationUserAnswerDTO;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -42,5 +43,20 @@ public class CurationSessions {
         this.user = user;
         this.query = query;
         this.curationResults = curationResults;
+    }
+
+    public void updateResults(List<CurationSubmitRequestDTO.AnswerItem> newAnswers) {
+        if (this.curationResults == null || newAnswers == null) return;
+
+        for (CurationSubmitRequestDTO.AnswerItem answer : newAnswers) {
+            // curationResults 리스트를 돌면서 매칭되는 항목 찾기
+            this.curationResults.stream()
+                    .filter(res -> res.getDisplayLabel().equals(answer.getDisplayLabel()))
+                    .findFirst()
+                    .ifPresent(res -> {
+                        // 사용자가 선택한 답변으로 업데이트
+                        res.updateSelectedAnswer(answer.getSelectedAnswer());
+                    });
+        }
     }
 }
