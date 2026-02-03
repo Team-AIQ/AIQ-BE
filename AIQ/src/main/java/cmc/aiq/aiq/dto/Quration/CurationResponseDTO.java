@@ -11,6 +11,7 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 public class CurationResponseDTO {
+    // 사용자에게 큐레이션 질문 생성 후 보내는 DTO
     private Long queryId;
     private String categoryName;
     private List<CategoryAttributesDTO> questions;
