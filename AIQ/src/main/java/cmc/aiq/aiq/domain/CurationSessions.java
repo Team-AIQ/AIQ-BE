@@ -35,7 +35,7 @@ public class CurationSessions {
     private Queries query;
 
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "category_attributes", nullable = false, unique = true)
+    @JoinColumn(name = "category_attributes", nullable = false, unique = false)
     private CategoryAttributes categoryAttributes;
 
     @JdbcTypeCode(SqlTypes.JSON)
