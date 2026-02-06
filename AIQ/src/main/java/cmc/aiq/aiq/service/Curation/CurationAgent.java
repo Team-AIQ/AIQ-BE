@@ -1,4 +1,4 @@
-package cmc.aiq.aiq.service.ai;
+package cmc.aiq.aiq.service.Curation;
 
 import cmc.aiq.aiq.dto.Quration.AiCategoryAnalysisDTO;
 import cmc.aiq.aiq.dto.Quration.CategoryAttributesDTO;

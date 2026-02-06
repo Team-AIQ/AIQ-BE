@@ -54,8 +54,11 @@ public class AiResponse {
     // 성공 시 호출할 비즈니스 메서드
     public void complete(String content, Map<String, Object> metadata) {
         this.content = content;
-        this.metadata = metadata;
         this.status = ResponseStatus.COMPLETED;
+        if (this.metadata == null) {
+            this.metadata = new HashMap<>();
+        }
+        this.metadata.putAll(metadata);
     }
 
     // 실패 시 호출할 비즈니스 메서드

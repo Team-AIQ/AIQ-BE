@@ -34,14 +34,19 @@ public class CurationSessions {
     @JoinColumn(name = "query_id", nullable = false, unique = true)
     private Queries query;
 
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_attributes", nullable = false, unique = true)
+    private CategoryAttributes categoryAttributes;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "curation_results", columnDefinition = "jsonb")
     private List<CurationUserAnswerDTO> curationResults;
 
     @Builder
-    public CurationSessions(Users user, Queries query, List<CurationUserAnswerDTO> curationResults) {
+    public CurationSessions(Users user, Queries query, CategoryAttributes categoryAttributes, List<CurationUserAnswerDTO> curationResults) {
         this.user = user;
         this.query = query;
+        this.categoryAttributes = categoryAttributes;
         this.curationResults = curationResults;
     }
 

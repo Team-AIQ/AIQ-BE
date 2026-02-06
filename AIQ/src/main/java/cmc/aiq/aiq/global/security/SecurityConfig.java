@@ -4,6 +4,7 @@ import cmc.aiq.aiq.global.security.jwt.JwtAuthenticationFilter;
 import cmc.aiq.aiq.global.security.jwt.JwtTokenProvider;
 import cmc.aiq.aiq.global.security.oauth.CustomOAuth2UserService;
 import cmc.aiq.aiq.global.security.oauth.OAuth2SuccessHandler;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -12,6 +13,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
@@ -36,13 +38,13 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable) // 중복 코드는 하나로 합치는 게 깔끔합니다.
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
-//                .sessionManagement(session -> session
-//                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-//                )
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/api/v1/curation/**").hasRole("USER")
-                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/v1/curation/**", "/api/v1/aiq/**").hasRole("USER")
+                        .requestMatchers("/api/auth/**", "/error").permitAll()
                         .requestMatchers("/login/**", "/oauth2/**").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .anyRequest().authenticated()
@@ -59,6 +61,9 @@ public class SecurityConfig {
                         .successHandler(oAuth2SuccessHandler)
                 );
 
+        http.securityContext(context -> context
+                .requireExplicitSave(false)
+        );
         return http.build();
 
     }

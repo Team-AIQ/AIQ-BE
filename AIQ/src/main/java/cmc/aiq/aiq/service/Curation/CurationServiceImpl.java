@@ -1,4 +1,4 @@
-package cmc.aiq.aiq.service.ai;
+package cmc.aiq.aiq.service.Curation;
 
 import cmc.aiq.aiq.domain.CategoryAttributes;
 import cmc.aiq.aiq.domain.CurationSessions;
@@ -129,12 +129,15 @@ public class CurationServiceImpl implements CurationService{
                 }
             }
         }
-        saveInitialSession(user, query, curationQuestions);
+        saveInitialSession(user, query, curationQuestions , categoryName);
         log.info("[3] 큐레이션 질문 생성 완료. QueryID: {}", query.getId());
         return new CurationResponseDTO(query.getId(), categoryName, curationQuestions, message);
     }
-    private void saveInitialSession(Users user, Queries query, List<CategoryAttributesDTO> questions) {
+    private void saveInitialSession(Users user, Queries query, List<CategoryAttributesDTO> questions , String categoryName) {
         log.info("CurationSession 초기 상태 저장 시작");
+
+        CategoryAttributes category = categoryRepository.findByCategoryName(categoryName)
+                .orElseThrow(() -> new RuntimeException("카테고리를 찾을 수 없습니다."));
 
         // CategoryAttributesDTO -> CurationUserAnswerDTO 변환
         // 지성님의 DTO 구조(display_label, question_text, selected_answer)에 맞게 매핑합니다.
@@ -149,6 +152,7 @@ public class CurationServiceImpl implements CurationService{
         CurationSessions session = CurationSessions.builder()
                 .user(user)
                 .query(query)
+                .categoryAttributes(category)
                 .curationResults(sessionResults)
                 .build();
 

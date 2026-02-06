@@ -1,11 +1,10 @@
 package cmc.aiq.aiq.controller;
 
-import cmc.aiq.aiq.domain.CurationSessions;
 import cmc.aiq.aiq.dto.ApiResponse;
 import cmc.aiq.aiq.dto.Quration.CurationRequestDTO;
 import cmc.aiq.aiq.dto.Quration.CurationResponseDTO;
 import cmc.aiq.aiq.dto.Quration.CurationSubmitRequestDTO;
-import cmc.aiq.aiq.service.ai.CurationService;
+import cmc.aiq.aiq.service.Curation.CurationService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
