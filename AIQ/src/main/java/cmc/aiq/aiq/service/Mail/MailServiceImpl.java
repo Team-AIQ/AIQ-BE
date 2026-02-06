@@ -1,5 +1,7 @@
 package cmc.aiq.aiq.service.Mail;
 
+import cmc.aiq.aiq.domain.ENUM.AuthProvider;
+import cmc.aiq.aiq.repository.UsersRepository;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
@@ -20,11 +22,15 @@ public class MailServiceImpl implements MailService {
 
     private final JavaMailSender mailSender;
     private final StringRedisTemplate redisTemplate;
+    private final UsersRepository usersRepository;
 
     @Async
     // 이메일 인증 메일 발송
     @Override
     public void sendMagicLink(String email) throws MessagingException {
+
+        usersRepository.findByEmailAndProvider(email, AuthProvider.EMAIL)
+                .orElseThrow(() -> new RuntimeException("이메일로 가입된 계정을 찾을 수 없습니다. (소셜 로그인 계정일 수 있습니다.)"));
         String token = UUID.randomUUID().toString();
         redisTemplate.opsForValue().set(token, email, Duration.ofMinutes(5));
 
