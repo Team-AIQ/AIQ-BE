@@ -34,7 +34,7 @@ public class CurationServiceImpl implements CurationService{
     private final ObjectMapper objectMapper;
     private final CurationSessionsRepository curationSessionsRepository;
 
-    private static final double MATCH_THRESHOLD = 0.35;
+    private static final double MATCH_THRESHOLD = 0.43;
 
 
     @Override
@@ -114,7 +114,8 @@ public class CurationServiceImpl implements CurationService{
                 curationQuestions = analysis.getQuestions();
                 message = "새로운 쇼핑 분야를 발견하여 맞춤 질문을 구성했습니다.";
 
-                float[] newCategoryVector = embeddingModel.embed(analysis.getDisplayName()).content().vector();
+                String textToEmbed = analysis.getDisplayName() + " " + analysis.getDescription();
+                float[] newCategoryVector = embeddingModel.embed(textToEmbed).content().vector();
 
                 try {
                     categoryRepository.insertCategoryWithVector(
