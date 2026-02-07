@@ -1,4 +1,4 @@
-package cmc.aiq.aiq.service.ai;
+package cmc.aiq.aiq.service.Curation;
 
 import cmc.aiq.aiq.domain.CategoryAttributes;
 import cmc.aiq.aiq.domain.CurationSessions;
@@ -34,7 +34,7 @@ public class CurationServiceImpl implements CurationService{
     private final ObjectMapper objectMapper;
     private final CurationSessionsRepository curationSessionsRepository;
 
-    private static final double MATCH_THRESHOLD = 0.35;
+    private static final double MATCH_THRESHOLD = 0.43;
 
 
     @Override
@@ -114,7 +114,8 @@ public class CurationServiceImpl implements CurationService{
                 curationQuestions = analysis.getQuestions();
                 message = "새로운 쇼핑 분야를 발견하여 맞춤 질문을 구성했습니다.";
 
-                float[] newCategoryVector = embeddingModel.embed(analysis.getDisplayName()).content().vector();
+                String textToEmbed = analysis.getDisplayName() + " " + analysis.getDescription();
+                float[] newCategoryVector = embeddingModel.embed(textToEmbed).content().vector();
 
                 try {
                     categoryRepository.insertCategoryWithVector(
@@ -129,12 +130,15 @@ public class CurationServiceImpl implements CurationService{
                 }
             }
         }
-        saveInitialSession(user, query, curationQuestions);
+        saveInitialSession(user, query, curationQuestions , categoryName);
         log.info("[3] 큐레이션 질문 생성 완료. QueryID: {}", query.getId());
         return new CurationResponseDTO(query.getId(), categoryName, curationQuestions, message);
     }
-    private void saveInitialSession(Users user, Queries query, List<CategoryAttributesDTO> questions) {
+    private void saveInitialSession(Users user, Queries query, List<CategoryAttributesDTO> questions , String categoryName) {
         log.info("CurationSession 초기 상태 저장 시작");
+
+        CategoryAttributes category = categoryRepository.findByCategoryName(categoryName)
+                .orElseThrow(() -> new RuntimeException("카테고리를 찾을 수 없습니다."));
 
         // CategoryAttributesDTO -> CurationUserAnswerDTO 변환
         // 지성님의 DTO 구조(display_label, question_text, selected_answer)에 맞게 매핑합니다.
@@ -149,6 +153,7 @@ public class CurationServiceImpl implements CurationService{
         CurationSessions session = CurationSessions.builder()
                 .user(user)
                 .query(query)
+                .categoryAttributes(category)
                 .curationResults(sessionResults)
                 .build();
 
@@ -157,14 +162,17 @@ public class CurationServiceImpl implements CurationService{
 
     @Override
     public void saveUserAnswers(CurationSubmitRequestDTO request) {
-        // 1. queryId를 통해 연관된 세션 조회
+        log.info("대답 저장 요청 시작 - QueryID: {}, 답변 개수: {}",
+                request.getQueryId(),
+                (request.getAnswers() != null ? request.getAnswers().size() : 0));
         CurationSessions session = curationSessionsRepository.findByQueryId(request.getQueryId())
                 .orElseThrow(() -> new RuntimeException("해당 질문에 대한 큐레이션 세션을 찾을 수 없습니다."));
 
-        // 2. 답변 업데이트 실행
         session.updateResults(request.getAnswers());
+        log.info("업데이트 후 결과: {}", session.getCurationResults());
+        curationSessionsRepository.save(session);
 
-        // 3. @Transactional에 의해 자동 Flush (Dirty Checking)
+
         log.info("QueryID {}에 대한 사용자 답변 저장 완료", request.getQueryId());
     }
 }

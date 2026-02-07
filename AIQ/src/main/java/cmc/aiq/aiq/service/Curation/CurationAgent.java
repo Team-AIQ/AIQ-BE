@@ -1,4 +1,4 @@
-package cmc.aiq.aiq.service.ai;
+package cmc.aiq.aiq.service.Curation;
 
 import cmc.aiq.aiq.dto.Quration.AiCategoryAnalysisDTO;
 import cmc.aiq.aiq.dto.Quration.CategoryAttributesDTO;
@@ -51,6 +51,7 @@ public interface CurationAgent {
     4. 선택적 채우기: 사용자의 발언이 생성된 4가지 표준 속성 중 하나에 명확히 부합할 때만 'user_answer'를 채웁니다. 만약 사용자의 요청이 표준적인 쇼핑 기준에서 벗어나거나 황당한 내용이라면 'user_answer'는 null로 두세요.
 
     ### [추출 및 채우기 규칙]
+    - **options 생성**: 각 질문에 맞는 객관적인 선택지를 제공하세요. (예: 예산 질문 -> ["100만원 이하", "100~200만원", "200만원 이상"])
     - 추출 대상: 금액(100만원대), 용도(가성비, 게임용), 특정 브랜드, 크기, 무게 등.
     - 원문 보존: "백만원 정도"라고 했으면 "100만원"으로 고치지 말고 "백만원 정도"라고 그대로 넣으세요.
     - 매핑 로직: 예산 관련 질문을 생성했다면, 사용자가 말한 '100만원대'라는 키워드를 그 질문의 'user_answer'에 즉시 매핑하세요.
@@ -59,10 +60,12 @@ public interface CurationAgent {
     ### [데이터 형식]
     - categoryName: 영어_소문자 (예: air_conditioner)
     - displayName: 한국어 카테고리명 (예: 에어컨)
-    - questions: List<CategoryAttributesDTO> 형태
+    - description: 해당 카테고리의 동의어, 포함되는 제품 종류, 주요 용도를 나열한 한 줄 요약
+    - questions: List<CategoryAttributesDTO> 형태 (각 객체는 attribute_key, display_label, question_text, options, user_answer를 포함해야 함)
     
     ### [주의 사항]
     - 절대로 사용자의 말을 요약하거나 'options' 중 하나로 바꾸지 마세요.
+    - description은 임베딩 시 검색 정확도를 높이기 위한 핵심 데이터이므로, 관련 키워드를 충분히 포함하세요.
     - 본문에 근거가 없는 정보만 null로 남기세요.
     - 응답은 반드시 AiCategoryAnalysisDTO 형식의 JSON이어야 합니다.
     """)

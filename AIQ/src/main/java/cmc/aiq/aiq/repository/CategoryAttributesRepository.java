@@ -47,4 +47,6 @@ public interface CategoryAttributesRepository extends JpaRepository<CategoryAttr
             @Param("attributes") String attributes,
             @Param("isAi") boolean isAi
     );
+
+    Optional<CategoryAttributes> findByCategoryName(String categoryName);
 }

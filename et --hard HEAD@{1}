@@ -1,0 +1,47 @@
+[33me8d369f[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature/AiMultiCall[m[33m, [m[1;31morigin/feature/AiMultiCall[m[33m)[m HEAD@{0}: reset: moving to e8d369f
+[33mbc6f69e[m HEAD@{1}: commit (merge): Merge branch 'refs/heads/develop' into feature/AiMultiCall
+[33me8d369f[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature/AiMultiCall[m[33m, [m[1;31morigin/feature/AiMultiCall[m[33m)[m HEAD@{2}: merge develop: updating HEAD
+[33me8d369f[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature/AiMultiCall[m[33m, [m[1;31morigin/feature/AiMultiCall[m[33m)[m HEAD@{3}: merge develop: updating HEAD
+[33me8d369f[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature/AiMultiCall[m[33m, [m[1;31morigin/feature/AiMultiCall[m[33m)[m HEAD@{4}: checkout: moving from fix/create_attributes_prompt_fix to feature/AiMultiCall
+[33mdab8b2c[m[33m ([m[1;31morigin/fix/create_attributes_prompt_fix[m[33m, [m[1;31morigin/develop[m[33m, [m[1;32mfix/create_attributes_prompt_fix[m[33m, [m[1;32mdevelop[m[33m)[m HEAD@{5}: commit: 사전 카테고리 DB수정하였음
+[33m87ccbce[m[33m ([m[1;31morigin/fix/API_Result_Combine[m[33m, [m[1;32mfix/API_Result_Combine[m[33m)[m HEAD@{6}: checkout: moving from develop to fix/create_attributes_prompt_fix
+[33m87ccbce[m[33m ([m[1;31morigin/fix/API_Result_Combine[m[33m, [m[1;32mfix/API_Result_Combine[m[33m)[m HEAD@{7}: checkout: moving from feature/AiMultiCall to develop
+[33me8d369f[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature/AiMultiCall[m[33m, [m[1;31morigin/feature/AiMultiCall[m[33m)[m HEAD@{8}: commit: LangChain 및 SSE를 활용한 AI 병렬 호출 사전 작업
+[33m87ccbce[m[33m ([m[1;31morigin/fix/API_Result_Combine[m[33m, [m[1;32mfix/API_Result_Combine[m[33m)[m HEAD@{9}: checkout: moving from develop to feature/AiMultiCall
+[33m87ccbce[m[33m ([m[1;31morigin/fix/API_Result_Combine[m[33m, [m[1;32mfix/API_Result_Combine[m[33m)[m HEAD@{10}: merge origin/develop: Fast-forward
+[33m5c4227c[m HEAD@{11}: checkout: moving from fix/API_Result_Combine to develop
+[33m87ccbce[m[33m ([m[1;31morigin/fix/API_Result_Combine[m[33m, [m[1;32mfix/API_Result_Combine[m[33m)[m HEAD@{12}: merge develop: Merge made by the 'ort' strategy.
+[33m5e8a44a[m HEAD@{13}: checkout: moving from develop to fix/API_Result_Combine
+[33m5c4227c[m HEAD@{14}: commit: 사용자가 Curation 질문에 대답을 하면 DB에 저장하는 로직 개발 하였습니다.(2) Service에 등록
+[33m23fb0e9[m[33m ([m[1;31morigin/fix/camelCase_Change[m[33m, [m[1;32mfix/camelCase_Change[m[33m)[m HEAD@{15}: merge origin/develop: Fast-forward
+[33m17f51ce[m HEAD@{16}: checkout: moving from fix/camelCase_Change to develop
+[33m23fb0e9[m[33m ([m[1;31morigin/fix/camelCase_Change[m[33m, [m[1;32mfix/camelCase_Change[m[33m)[m HEAD@{17}: commit: 사용자가 Curation 질문에 대답을 하면 DB에 저장하는 로직 개발 하였습니다.
+[33md896d6d[m HEAD@{18}: commit: CamelCase로 변경
+[33m17f51ce[m HEAD@{19}: checkout: moving from develop to fix/camelCase_Change
+[33m17f51ce[m HEAD@{20}: commit: 사용자 비밀번호 찾기 할 때 Authprovider.EMAIL도 같이 확인하기
+[33m3230f72[m[33m ([m[1;31morigin/fix/OauthLogin_findByproviderId[m[33m, [m[1;32mfix/OauthLogin_findByproviderId[m[33m)[m HEAD@{21}: checkout: moving from fix/API_Result_Combine to develop
+[33m5e8a44a[m HEAD@{22}: checkout: moving from develop to fix/API_Result_Combine
+[33m3230f72[m[33m ([m[1;31morigin/fix/OauthLogin_findByproviderId[m[33m, [m[1;32mfix/OauthLogin_findByproviderId[m[33m)[m HEAD@{23}: checkout: moving from fix/API_Result_Combine to develop
+[33m5e8a44a[m HEAD@{24}: commit: 프론트로 데이터 보내줄 때 응답 규격 맞추기
+[33m3230f72[m[33m ([m[1;31morigin/fix/OauthLogin_findByproviderId[m[33m, [m[1;32mfix/OauthLogin_findByproviderId[m[33m)[m HEAD@{25}: checkout: moving from fix/OauthLogin_findByproviderId to fix/API_Result_Combine
+[33m3230f72[m[33m ([m[1;31morigin/fix/OauthLogin_findByproviderId[m[33m, [m[1;32mfix/OauthLogin_findByproviderId[m[33m)[m HEAD@{26}: commit: 소셜 로그인할 때 Email이랑 ProviderID로 중복 확인하여 중복 회원가입 가능하게 만들었음
+[33m1f73a54[m[33m ([m[1;31morigin/feature/AiQuration[m[33m, [m[1;32mfeature/AiQuration[m[33m)[m HEAD@{27}: checkout: moving from develop to fix/OauthLogin_findByproviderId
+[33m1f73a54[m[33m ([m[1;31morigin/feature/AiQuration[m[33m, [m[1;32mfeature/AiQuration[m[33m)[m HEAD@{28}: checkout: moving from fix/login_Callback_distribute_Web_APP to develop
+[33mde1e103[m[33m ([m[1;31morigin/fix/login_Callback_distribute_Web_APP[m[33m, [m[1;32mfix/login_Callback_distribute_Web_APP[m[33m)[m HEAD@{29}: commit: 앱에서 소셜 로그인 시 앱에서 콜백 주소 수정하였음 , Oauth2.0 로그인 페이지 안뜨게 설정
+[33m2b61769[m HEAD@{30}: commit: 앱에서 소셜 로그인 시 앱에서 콜백 주소 수정하였음
+[33m1f73a54[m[33m ([m[1;31morigin/feature/AiQuration[m[33m, [m[1;32mfeature/AiQuration[m[33m)[m HEAD@{31}: checkout: moving from feature/AiQuration to fix/login_Callback_distribute_Web_APP
+[33m1f73a54[m[33m ([m[1;31morigin/feature/AiQuration[m[33m, [m[1;32mfeature/AiQuration[m[33m)[m HEAD@{32}: commit: localhost8080:/api/oauth/login 으로 들어가면 기본 로그인 페이지 나오게
+[33m515dac1[m HEAD@{33}: commit: 사용자가 엉뚱한 질문을 해도 해당 질문에 맞춰서 질문을 생성하는 테스트 발견
+[33m6068edc[m HEAD@{34}: commit: curation_session 기능 저장 로직 구현 완료
+[33mfb64ac8[m HEAD@{35}: commit: AI 큐레이션 기능 개발 완료
+[33m57b5dff[m HEAD@{36}: commit: AI 큐레이션 기능 개발 중 벡터DB로 사용자 질문의 카테고리를 추출하는 로직까지 개발
+[33mcd8b80f[m[33m ([m[1;31morigin/fix/login-nitialLoginAt-SocialLogin[m[33m, [m[1;32mfix/login-nitialLoginAt-SocialLogin[m[33m)[m HEAD@{37}: checkout: moving from category/category-insert to feature/AiQuration
+[33m8419dce[m[33m ([m[1;31morigin/category/category-insert[m[33m, [m[1;32mcategory/category-insert[m[33m)[m HEAD@{38}: checkout: moving from fix/login-nitialLoginAt-SocialLogin to category/category-insert
+[33mcd8b80f[m[33m ([m[1;31morigin/fix/login-nitialLoginAt-SocialLogin[m[33m, [m[1;32mfix/login-nitialLoginAt-SocialLogin[m[33m)[m HEAD@{39}: commit: 소셜 로그인 최초 로그인 유저 initialLoginAt자동 생성
+[33m4493af4[m[33m ([m[1;31morigin/feature/login-FindPassword[m[33m, [m[1;31morigin/feature/login[m[33m, [m[1;32mfeature/login-FindPassword[m[33m, [m[1;32mfeature/login[m[33m)[m HEAD@{40}: checkout: moving from category/category-insert to fix/login-nitialLoginAt-SocialLogin
+[33m8419dce[m[33m ([m[1;31morigin/category/category-insert[m[33m, [m[1;32mcategory/category-insert[m[33m)[m HEAD@{41}: commit: Category Entity , DTO생성
+[33m4493af4[m[33m ([m[1;31morigin/feature/login-FindPassword[m[33m, [m[1;31morigin/feature/login[m[33m, [m[1;32mfeature/login-FindPassword[m[33m, [m[1;32mfeature/login[m[33m)[m HEAD@{42}: checkout: moving from feature/login-FindPassword to category/category-insert
+[33m4493af4[m[33m ([m[1;31morigin/feature/login-FindPassword[m[33m, [m[1;31morigin/feature/login[m[33m, [m[1;32mfeature/login-FindPassword[m[33m, [m[1;32mfeature/login[m[33m)[m HEAD@{43}: commit: AuthController에서 AuthService호출할 때 DTO를 넘겨주는걸로 수정
+[33mab13270[m HEAD@{44}: commit: 사용자 비밀번호 찾기 기능 구현 완료
+[33m387ed0d[m[33m ([m[1;31morigin/feature/login-EmailAuthentication[m[33m, [m[1;32mfeature/login-EmailAuthentication[m[33m)[m HEAD@{45}: checkout: moving from feature/login-EmailAuthentication to feature/login-FindPassword
+[33m387ed0d[m[33m ([m[1;31morigin/feature/login-EmailAuthentication[m[33m, [m[1;32mfeature/login-EmailAuthentication[m[33m)[m HEAD@{46}: commit (merge): Merge branch 'feature/login' into feature/logi

@@ -2,7 +2,7 @@ package cmc.aiq.aiq.service;
 
 import cmc.aiq.aiq.dto.SignUpRequestDTO;
 import cmc.aiq.aiq.global.security.jwt.JwtTokenProvider;
-import cmc.aiq.aiq.domain.AuthProvider;
+import cmc.aiq.aiq.domain.ENUM.AuthProvider;
 import cmc.aiq.aiq.domain.Users;
 import cmc.aiq.aiq.dto.LoginRequestDTO;
 import cmc.aiq.aiq.dto.TokenResponseDTO;

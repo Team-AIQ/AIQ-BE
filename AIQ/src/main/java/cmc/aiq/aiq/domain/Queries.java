@@ -1,4 +1,5 @@
 package cmc.aiq.aiq.domain;
+import cmc.aiq.aiq.domain.ENUM.QueryStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import org.springframework.data.annotation.CreatedDate;

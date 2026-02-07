@@ -1,4 +1,4 @@
-package cmc.aiq.aiq.domain;
+package cmc.aiq.aiq.domain.ENUM;
 
 public enum QueryStatus {
     PENDING, COMPLETED, FAILED

@@ -34,14 +34,19 @@ public class CurationSessions {
     @JoinColumn(name = "query_id", nullable = false, unique = true)
     private Queries query;
 
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_attributes", nullable = false, unique = false)
+    private CategoryAttributes categoryAttributes;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "curation_results", columnDefinition = "jsonb")
     private List<CurationUserAnswerDTO> curationResults;
 
     @Builder
-    public CurationSessions(Users user, Queries query, List<CurationUserAnswerDTO> curationResults) {
+    public CurationSessions(Users user, Queries query, CategoryAttributes categoryAttributes, List<CurationUserAnswerDTO> curationResults) {
         this.user = user;
         this.query = query;
+        this.categoryAttributes = categoryAttributes;
         this.curationResults = curationResults;
     }
 
@@ -55,7 +60,7 @@ public class CurationSessions {
                     .findFirst()
                     .ifPresent(res -> {
                         // 사용자가 선택한 답변으로 업데이트
-                        res.updateSelectedAnswer(answer.getSelectedAnswer());
+                        res.updateSelectedAnswer(answer.getUserAnswer());
                     });
         }
     }

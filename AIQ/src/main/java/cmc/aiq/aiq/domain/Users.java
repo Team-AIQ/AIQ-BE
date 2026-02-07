@@ -1,5 +1,7 @@
 package cmc.aiq.aiq.domain;
 
+import cmc.aiq.aiq.domain.ENUM.AuthProvider;
+import cmc.aiq.aiq.domain.ENUM.UserRole;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
