@@ -3,9 +3,11 @@ package cmc.aiq.aiq.global.security.oauth;
 import cmc.aiq.aiq.global.security.jwt.JwtTokenProvider;
 import cmc.aiq.aiq.domain.Users;
 import cmc.aiq.aiq.repository.UsersRepository;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.log4j.Log4j2;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.core.user.OAuth2User;
@@ -19,6 +21,7 @@ import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
+@Log4j2
 public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
     private final JwtTokenProvider jwtTokenProvider;
     private final UsersRepository usersRepository;
@@ -26,47 +29,56 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
                                         Authentication authentication) throws IOException {
-        String origin = request.getParameter("origin");
-
-        // 2. 기본 리다이렉트 주소 설정 (기본값은 web용 localhost:3000)
-        String baseUrl = "http://localhost:3000/oauth/callback";
-
-        // 3. origin 값에 따른 분기 처리 (나중에 앱이나 다른 환경이 추가될 경우)
-        if ("web".equals(origin)) {
-            baseUrl = "http://localhost:3000/oauth/callback";
-        } else if ("app".equals(origin)) {
-            // 예: 모바일 앱 딥링크 주소 등
-            baseUrl = "aiq://oauth/callback";
+        // 1. 쿠키에서 origin 값 추출 (파라미터는 유실되므로 쿠키 사용)
+        String origin = "web"; // 기본값
+        Cookie[] cookies = request.getCookies();
+        if (cookies != null) {
+            for (Cookie cookie : cookies) {
+                if ("login_origin".equals(cookie.getName())) {
+                    origin = cookie.getValue();
+                    // 사용한 쿠키는 삭제 (선택 사항)
+                    cookie.setMaxAge(0);
+                    response.addCookie(cookie);
+                    break;
+                }
+            }
         }
 
+        // 2. origin에 따른 Base URL 결정
+        String baseUrl = "app".equals(origin)
+                ? "aiq://oauth/callback"           // iOS ReactNative 딥링크
+                : "http://localhost:3000/oauth/callback"; // Web용
+
+        // 3. 기존 로직 (사용자 조회 및 토큰 생성)
         OAuth2AuthenticationToken authToken = (OAuth2AuthenticationToken) authentication;
         String registrationId = authToken.getAuthorizedClientRegistrationId();
-
         OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
-        // 실제 운영 시에는 소셜별 이메일 추출 로직을 거쳐야 함
-        String email = extractEmail(oAuth2User , registrationId);
+
+        String email = extractEmail(oAuth2User, registrationId);
         String providerId = extractProviderId(oAuth2User, registrationId);
 
-        Users user = usersRepository.findByProviderIdAndEmail(providerId,email).orElseThrow();
-        boolean isRememberMe = true;
+        Users user = usersRepository.findByProviderIdAndEmail(providerId, email)
+                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
 
+        // JWT 토큰 생성
         String accessToken = jwtTokenProvider.createAccessToken(user.getId(), user.getEmail(), user.getRole().name());
-        String refreshToken = jwtTokenProvider.createRefreshToken(user.getId(), user.getEmail(), user.getRole().name() , isRememberMe);
+        String refreshToken = jwtTokenProvider.createRefreshToken(user.getId(), user.getEmail(), user.getRole().name(), true);
 
-        if (user.getInitialLoginAt() == null ||
-                user.getInitialLoginAt().plusDays(90).isBefore(LocalDateTime.now())) {
+        // 로그인 시간 및 리프레시 토큰 업데이트
+        if (user.getInitialLoginAt() == null || user.getInitialLoginAt().plusDays(90).isBefore(LocalDateTime.now())) {
             user.updateInitialLoginAt(LocalDateTime.now());
         }
-
         user.updateRefreshToken(refreshToken);
         usersRepository.save(user);
 
-        // 프론트엔드(Next.js 등)로 토큰을 전달하며 리다이렉트
+        // 4. 최종 리다이렉트 URL 생성
+        // 딥링크와 웹 URL 모두 쿼리 파라미터로 토큰을 전달합니다.
         String targetUrl = UriComponentsBuilder.fromUriString(baseUrl)
                 .queryParam("accessToken", accessToken)
                 .queryParam("refreshToken", refreshToken)
                 .build().toUriString();
 
+        log.info("인증 성공! {} 방향으로 리다이렉트합니다.", origin);
         getRedirectStrategy().sendRedirect(request, response, targetUrl);
     }
 
@@ -110,5 +122,15 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         }
 
         throw new IllegalArgumentException("지원하지 않는 소셜 로그인입니다: " + registrationId);
+    }
+    public void saveOriginInCookie(HttpServletRequest request, HttpServletResponse response) {
+        String origin = request.getParameter("origin");
+        if (origin != null) {
+            Cookie cookie = new Cookie("login_origin", origin);
+            cookie.setPath("/");
+            cookie.setHttpOnly(true);
+            cookie.setMaxAge(300); // 5분간 유효
+            response.addCookie(cookie);
+        }
     }
 }
