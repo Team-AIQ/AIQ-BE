@@ -14,14 +14,13 @@ public class AiOrchestratorController {
 
     @GetMapping(value = "/stream/{queryId}", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter streamAiRecommendations(
-            @PathVariable Long queryId,
-            @RequestParam String userQuestion) {
+            @PathVariable Long queryId) {
 
         // 타임아웃 설정 (3개 모델 + 리포트 생성까지 시간이 걸리므로 5분 정도로 넉넉하게 설정)
         SseEmitter emitter = new SseEmitter(300_000L);
 
         // 비동기 서비스 호출
-        aiOrchestratorService.executeParallelAi(queryId, userQuestion, emitter);
+        aiOrchestratorService.executeParallelAi(queryId, emitter);
 
         return emitter;
     }

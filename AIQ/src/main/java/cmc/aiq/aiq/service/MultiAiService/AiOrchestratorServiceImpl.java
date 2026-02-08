@@ -2,6 +2,7 @@ package cmc.aiq.aiq.service.MultiAiService;
 
 import cmc.aiq.aiq.domain.AiResponse;
 import cmc.aiq.aiq.domain.CurationSessions;
+import cmc.aiq.aiq.domain.ENUM.ResponseType;
 import cmc.aiq.aiq.domain.Models;
 import cmc.aiq.aiq.domain.Queries;
 import cmc.aiq.aiq.dto.FinalReport.FinalReportResponse;
@@ -55,11 +56,12 @@ public class AiOrchestratorServiceImpl implements AiOrchestratorService {
 
     @Override
     @Transactional
-    public void executeParallelAi(Long queryId, String userQuestion, SseEmitter emitter) {
+    public void executeParallelAi(Long queryId, SseEmitter emitter) {
         SecurityContext mainContext = SecurityContextHolder.getContext();
         // 1. 기초 데이터 로드
         Queries queries = queriesRepository.findById(queryId)
                 .orElseThrow(() -> new RuntimeException("질문 정보를 찾을 수 없습니다."));
+        String userQuestion = queries.getQuestion();
 
         CurationSessions session = curationSessionsRepository.findByQueryId(queryId)
                 .orElseThrow(() -> new RuntimeException("큐레이션 세션을 찾을 수 없습니다."));
@@ -71,7 +73,7 @@ public class AiOrchestratorServiceImpl implements AiOrchestratorService {
         Map<String, String> variables = Map.of(
                 "categoryName", categoryName,
                 "context", curationContext,
-                "question", userQuestion
+                "question", queries.getQuestion()
         );
 
         // 3. 치환된 시스템 프롬프트 가져오기
@@ -103,7 +105,7 @@ public class AiOrchestratorServiceImpl implements AiOrchestratorService {
                         );
 
                         // 4) 저장 및 전송 (우리가 만든 제네릭 saveCompletion 사용)
-                        AiResponse reportRecord = saveInitialPending(queries, "GPT");
+                        AiResponse reportRecord = saveInitialPending(queries, "GPT", ResponseType.FINAL_REPORT);
                         saveCompletion(reportRecord.getId(), reportResult, reportStartTime);
 
                         sendSse(emitter, "FINAL_REPORT", reportResult.content());
@@ -123,7 +125,7 @@ public class AiOrchestratorServiceImpl implements AiOrchestratorService {
     @Transactional
     public CompletableFuture<AiRecommendationResponse> callAi(ChatLanguageModel model, String modelName, String systemPrompt,
                                                               String question, Queries queries, SseEmitter emitter, SecurityContext context) {
-        AiResponse record = saveInitialPending(queries, modelName);
+        AiResponse record = saveInitialPending(queries, modelName,ResponseType.INDIVIDUAL);
         final Long responseId = record.getId();
 
         return CompletableFuture.supplyAsync(() -> {
@@ -161,13 +163,14 @@ public class AiOrchestratorServiceImpl implements AiOrchestratorService {
     }
 
     @Override
-    public AiResponse saveInitialPending(Queries queries, String modelName) {
+    public AiResponse saveInitialPending(Queries queries, String modelName , ResponseType type) {
         Models model = modelsRepository.findByName(modelName)
                 .orElseThrow(() -> new RuntimeException("모델 정보를 찾을 수 없습니다: " + modelName));
         // 지성님의 AiResponse 엔티티 빌더를 사용하여 PENDING 상태로 저장
         AiResponse response = AiResponse.builder()
                 .queries(queries)
                 .model(model)
+                .responseType(type)
                 .build();
         return aiResponseRepository.save(response);
     }

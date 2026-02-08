@@ -1,6 +1,7 @@
 package cmc.aiq.aiq.domain;
 
 import cmc.aiq.aiq.domain.ENUM.ResponseStatus;
+import cmc.aiq.aiq.domain.ENUM.ResponseType;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -42,11 +43,16 @@ public class AiResponse {
     @Column(name = "metadata", columnDefinition = "jsonb")
     private Map<String, Object> metadata = new HashMap<>();
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "response_type", nullable = false)
+    private ResponseType responseType = ResponseType.INDIVIDUAL;
+
     // ⭐️ [추가] AI 요청 시작 시 사용하는 생성자
     @Builder
-    public AiResponse(Queries queries, Models model) {
+    public AiResponse(Queries queries, Models model , ResponseType responseType) {
         this.queries = queries;
         this.model = model;
+        this.responseType = (responseType != null) ? responseType : ResponseType.INDIVIDUAL;
         this.status = ResponseStatus.PENDING; // 생성과 동시에 대기 상태로!
         this.metadata = new HashMap<>();      // NPE 방지
     }
