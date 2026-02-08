@@ -3,6 +3,7 @@ package cmc.aiq.aiq.global.security.oauth;
 import cmc.aiq.aiq.global.security.jwt.JwtTokenProvider;
 import cmc.aiq.aiq.domain.Users;
 import cmc.aiq.aiq.repository.UsersRepository;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -26,18 +27,25 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
                                         Authentication authentication) throws IOException {
-        String origin = request.getParameter("origin");
-
-        // 2. 기본 리다이렉트 주소 설정 (기본값은 web용 localhost:3000)
-        String baseUrl = "http://localhost:3000/oauth/callback";
-
-        // 3. origin 값에 따른 분기 처리 (나중에 앱이나 다른 환경이 추가될 경우)
-        if ("web".equals(origin)) {
-            baseUrl = "http://localhost:3000/oauth/callback";
-        } else if ("app".equals(origin)) {
-            // 예: 모바일 앱 딥링크 주소 등
-            baseUrl = "aiq://oauth/callback";
+        // 1. 쿠키에서 origin 값 추출 (파라미터는 유실되므로 쿠키 사용)
+        String origin = "web"; // 기본값
+        Cookie[] cookies = request.getCookies();
+        if (cookies != null) {
+            for (Cookie cookie : cookies) {
+                if ("login_origin".equals(cookie.getName())) {
+                    origin = cookie.getValue();
+                    // 사용한 쿠키는 삭제 (선택 사항)
+                    cookie.setMaxAge(0);
+                    response.addCookie(cookie);
+                    break;
+                }
+            }
         }
+
+        // 2. origin에 따른 Base URL 결정
+        String baseUrl = "app".equals(origin)
+                ? "aiq://oauth/callback"           // iOS ReactNative 딥링크
+                : "http://localhost:3000/oauth/callback"; // Web용
 
         OAuth2AuthenticationToken authToken = (OAuth2AuthenticationToken) authentication;
         String registrationId = authToken.getAuthorizedClientRegistrationId();
