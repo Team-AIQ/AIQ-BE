@@ -6,6 +6,8 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 
@@ -34,6 +36,7 @@ public class ChatMessages {
     private Integer roundCount; // 현재 대화 회차 (1~4)
 
     @Column(columnDefinition = "JSONB")
+    @JdbcTypeCode(SqlTypes.JSON)
     private String suggestedQuestions; // AI가 생성한 '다음 추천 질문 3개' (JSON 형식 저장)
 
     private LocalDateTime createdAt = LocalDateTime.now();

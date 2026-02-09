@@ -106,11 +106,20 @@ public class ChatServiceImpl implements ChatService{
                 .build());
 
         // 4. AI 답변 및 추천 질문 생성
-        String rawResponse = chatAgent.generateAnswer(reportContent, history, userQuestion);
-        String[] parts = rawResponse.split("==="); // 구분자로 분리
+        String rawResponse = chatAgent.generateAnswer(reportContent, history, userQuestion,nextRound);
+        String answer;
+        String suggestedQuestionsJson = "[]"; // 기본값은 빈 배열
 
-        String answer = parts[0].trim();
-        List<String> nextQuestions = parseQuestions(parts[1]);
+        if (rawResponse != null && rawResponse.contains("===")) {
+            String[] parts = rawResponse.split("===");
+            answer = parts[0].trim();
+            suggestedQuestionsJson = parts[1].trim();
+        } else {
+            log.warn("AI 응답에 구분자가 없습니다. 전체를 답변으로 처리합니다. QueryId: {}", queryId);
+            answer = (rawResponse != null) ? rawResponse.trim() : "죄송합니다. 답변을 생성하지 못했습니다.";
+        }
+
+        List<String> nextQuestions = parseQuestions(suggestedQuestionsJson);
 
         // 5. AI 답변 저장
         chatMessagesRepository.save(ChatMessages.builder()
@@ -119,12 +128,20 @@ public class ChatServiceImpl implements ChatService{
                 .senderType(SenderType.AI)
                 .content(answer)
                 .roundCount(nextRound)
-                .suggestedQuestions(parts[1].trim())
+                .suggestedQuestions(suggestedQuestionsJson)
                 .build());
 
         return new ChatResponse(answer, nextQuestions, nextRound, nextRound == 4);
     }
     private List<String> parseQuestions(String json) {
+        if (json == null || json.isBlank() || json.equals("[]")) {
+            return List.of();
+        }
+
+        // 1. ```json ... ``` 같은 마크다운 코드 블록 제거
+        String cleanedJson = json.trim()
+                .replaceAll("(?s)^```json\\s*", "")
+                .replaceAll("(?s)\\s*```$", "");
         try {
             return objectMapper.readValue(json.trim(), new TypeReference<List<String>>() {});
         } catch (Exception e) {

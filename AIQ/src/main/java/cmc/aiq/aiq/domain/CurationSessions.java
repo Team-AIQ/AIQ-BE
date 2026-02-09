@@ -31,7 +31,7 @@ public class CurationSessions {
     // 원본 질문과의 연관관계 (어떤 질문에서 시작되었는가)
     // original_question은 이 query 객체 안에 들어있습니다.
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "query_id", nullable = false, unique = true)
+    @JoinColumn(name = "query_id", nullable = false, unique = false)
     private Queries query;
 
     @OneToOne(fetch = FetchType.LAZY)
