@@ -168,7 +168,8 @@ public class AuthServiceImpl implements AuthService{
         }
 
         // 2. 실제 비밀번호 변경
-        Users user = usersRepository.findByEmail(email).orElseThrow();
+        Users user = usersRepository.findByEmailAndProvider(email , AuthProvider.EMAIL)
+                .orElseThrow(() -> new RuntimeException("가입되지 않은 이메일입니다."));
         user.updatePassword(passwordEncoder.encode(newPassword));
 
         // 3. 사용 완료된 토큰 삭제
