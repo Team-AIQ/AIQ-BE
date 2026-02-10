@@ -42,22 +42,25 @@ public class JwtTokenProvider {
     }
 
     // Access Token 생성
-    public String createAccessToken(Long userId, String email, String role) {
-        return createToken(userId, email, accessExpiration , false , role);
+    public String createAccessToken(Long userId, String email, String role , String nickname) {
+        return createToken(userId, email, accessExpiration , false , role, nickname);
     }
 
     // Refresh Token 생성
     public String createRefreshToken(Long userId, String email , String role, boolean isRememberMe) {
         long validity = isRememberMe ? rememberMeExpiration : refreshExpiration;
-        return createToken(userId, email, validity , isRememberMe , role);
+        return createToken(userId, email, validity , isRememberMe , role , null);
     }
 
     // 1. 토큰 생성 (이메일과 ID를 담아 암호화)
-    private String createToken(Long userId, String email, long validity , boolean isRememberMe, String role) {
+    private String createToken(Long userId, String email, long validity , boolean isRememberMe, String role , String nickname) {
         Claims claims = Jwts.claims().setSubject(email);
         claims.put("userId", userId);
         claims.put("auth", role);
         claims.put("isRememberMe", isRememberMe);
+        if (nickname != null) {
+            claims.put("nickname", nickname);
+        }
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + validity);
         return Jwts.builder()
