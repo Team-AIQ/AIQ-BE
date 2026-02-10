@@ -48,7 +48,8 @@ public class AuthServiceImpl implements AuthService{
 
     @Transactional
     public TokenResponseDTO login(LoginRequestDTO loginrequestDTO) {
-        Users user = usersRepository.findByEmail(loginrequestDTO.getEmail())
+
+        Users user = usersRepository.findByEmailAndProvider(loginrequestDTO.getEmail(),AuthProvider.EMAIL)
                 .orElseThrow(() -> new RuntimeException("가입되지 않은 이메일입니다."));
 
         if (!passwordEncoder.matches(loginrequestDTO.getPassword(), user.getPassword())) {
