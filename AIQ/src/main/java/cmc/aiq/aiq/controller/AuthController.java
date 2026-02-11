@@ -15,6 +15,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.net.URI;
+
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
@@ -49,21 +51,38 @@ public class AuthController {
 
     @PostMapping("/email-request")
     @Operation(summary = "매직링크 요청")
-    public ResponseEntity<ApiResponse<Void>> requestMagicLink(@RequestParam String email) throws MessagingException {
-        mailService.sendMagicLink(email);
+    public ResponseEntity<ApiResponse<Void>> requestMagicLink(@RequestParam String email, @RequestParam String origin) throws MessagingException {
+        mailService.sendMagicLink(email , origin);
         return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK, "인증 이메일이 발송되었습니다.", null));
     }
 
     @GetMapping("/verify-link")
     @Operation(summary = "매직링크 검증")
     public ResponseEntity<ApiResponse<String>> verifyMagicLink(@RequestParam String token) {
-        String email = mailService.verifyToken(token);
-        if (email != null) {
-            return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK, "인증 성공", "인증된 이메일: " + email));
+        String verificationData = mailService.verifyToken(token);
+
+        if (verificationData != null) {
+            String[] parts = verificationData.split(":");
+            String email = parts[0];
+            String origin = parts[1];
+
+            String redirectUrl;
+            if ("app".equalsIgnoreCase(origin)) {
+                // 앱: 설정해둔 커스텀 스킴(aiq://)을 통한 딥링크 리다이렉트
+                redirectUrl = "http://192.168.219.101:8080://signup-success?email=" + email;
+            } else {
+                // 웹: Next.js의 가입 완료 혹은 추가 정보 입력 페이지
+                redirectUrl = "http://localhost:3000/signup?verified=1&email=" + email;
+            }
+
+            return ResponseEntity.status(HttpStatus.FOUND) // 302 Redirect
+                    .location(URI.create(redirectUrl))
+                    .build();
         } else {
-            // 실패 시에도 규격을 맞춰서 401 반환
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(ApiResponse.success(HttpStatus.UNAUTHORIZED, "만료되었거나 유효하지 않은 토큰입니다.", null));
+            // 인증 실패 시 에러 안내 페이지(웹)로 이동시키거나 에러용 딥링크 발송
+            return ResponseEntity.status(HttpStatus.FOUND)
+                    .location(URI.create("http://localhost:3000/auth/error?reason=expired"))
+                    .build();
         }
     }
 

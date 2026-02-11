@@ -27,12 +27,15 @@ public class MailServiceImpl implements MailService {
     @Async
     // 이메일 인증 메일 발송
     @Override
-    public void sendMagicLink(String email) throws MessagingException {
+    public void sendMagicLink(String email , String origin) throws MessagingException {
 
-        usersRepository.findByEmailAndProvider(email, AuthProvider.EMAIL)
-                .orElseThrow(() -> new RuntimeException("이메일로 가입된 계정을 찾을 수 없습니다. (소셜 로그인 계정일 수 있습니다.)"));
+        if(usersRepository.existsByEmailAndProvider(email, AuthProvider.EMAIL)){
+            throw new RuntimeException("이미 가입된 이메일입니다. 로그인 혹은 비밀번호 찾기를 이용해주세요.");
+        }
+
         String token = UUID.randomUUID().toString();
-        redisTemplate.opsForValue().set(token, email, Duration.ofMinutes(5));
+        String redisValue = email + ":" + origin;
+        redisTemplate.opsForValue().set(token, redisValue, Duration.ofMinutes(5));
 
         String verificationLink = "http://localhost:8080/api/auth/verify-link?token=" + token;
 
@@ -104,12 +107,14 @@ public class MailServiceImpl implements MailService {
     @Override
     public String verifyToken(String token) {
         // Redis에서 토큰으로 이메일 조회
-        String email = redisTemplate.opsForValue().get(token);
+        String redisValue = redisTemplate.opsForValue().get(token);
 
-        if (email != null) {
-            // 인증 성공 시 토큰 삭제 (1회용)
+        if (redisValue != null) {
+            // 2. 인증 성공 시 토큰 삭제 (1회용 보안)
             redisTemplate.delete(token);
-            return email;
+
+            // 3. 결합된 문자열 그대로 반환
+            return redisValue;
         }
         return null;
     }
