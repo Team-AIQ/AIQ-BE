@@ -76,6 +76,9 @@ public class JwtTokenProvider {
         return Jwts.parserBuilder().setSigningKey(key).build()
                 .parseClaimsJws(token).getBody().getSubject();
     }
+    public Long getUserId(String token) {
+        return parseClaims(token).get("userId", Long.class);
+    }
 
     // 3. 토큰 유효성 검사
     public boolean validateToken(String token) {

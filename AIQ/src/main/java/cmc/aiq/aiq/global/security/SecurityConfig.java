@@ -5,6 +5,7 @@ import cmc.aiq.aiq.global.security.jwt.JwtTokenProvider;
 import cmc.aiq.aiq.global.security.oauth.CustomOAuth2UserService;
 import cmc.aiq.aiq.global.security.oauth.OAuth2SuccessHandler;
 import jakarta.annotation.PostConstruct;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -41,6 +42,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable) // 중복 코드는 하나로 합치는 게 깔끔합니다.
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
@@ -67,7 +69,16 @@ public class SecurityConfig {
                 .oauth2Login(oauth2 -> oauth2
                         .userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService))
                         .successHandler(oAuth2SuccessHandler)
+                )
+                .exceptionHandling(exception -> exception
+                        // 인증되지 않은 사용자가 API 호출 시 302 리다이렉트 대신 401 에러 반환
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "인증이 필요합니다.");
+                            response.setContentType("application/json;charset=UTF-8");
+                            response.getWriter().write("{\"message\":\"Unauthorized\"}");
+                        })
                 );
+
 
         http.securityContext(context -> context
                 .requireExplicitSave(false)
@@ -92,7 +103,7 @@ public class SecurityConfig {
         configuration.setAllowCredentials(true);
 
         // 노출할 헤더 설정 (필요 시)
-        // configuration.addExposedHeader("Authorization");
+        configuration.setExposedHeaders(Arrays.asList("Authorization", "Authorization-Refresh"));
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);

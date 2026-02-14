@@ -2,9 +2,9 @@ package cmc.aiq.aiq.repository;
 
 import cmc.aiq.aiq.domain.ENUM.AuthProvider;
 import cmc.aiq.aiq.domain.Users;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import java.security.Provider;
 import java.util.Optional;
 
 public interface UsersRepository extends JpaRepository<Users, Long> {

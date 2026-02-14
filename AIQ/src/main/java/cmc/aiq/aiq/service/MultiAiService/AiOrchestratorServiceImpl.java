@@ -109,6 +109,7 @@ public class AiOrchestratorServiceImpl implements AiOrchestratorService {
                         saveCompletion(reportRecord.getId(), reportResult, reportStartTime);
 
                         sendSse(emitter, "FINAL_REPORT", reportResult.content());
+                        sendSse(emitter, "finish", "done");
                         emitter.complete();
 
                     } catch (Exception e) {

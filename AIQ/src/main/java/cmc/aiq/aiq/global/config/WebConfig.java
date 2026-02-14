@@ -12,7 +12,7 @@ public class WebConfig implements WebMvcConfigurer {
                 .allowedOrigins("http://localhost:3000",
                         "http://192.168.219.101:3000",
                         "https://*.ngrok-free.app")
-                .allowedMethods("GET", "POST","DELETE","OPTIONS","PATCH")
+                .allowedMethods("GET", "POST","DELETE","OPTIONS","PATCH","PATCH")
                 .allowedHeaders("*")
                 .allowCredentials(true);
     }

@@ -34,7 +34,7 @@ public class AuthServiceImpl implements AuthService{
 
     @Transactional
     public void signUp(SignUpRequestDTO request){
-        if(usersRepository.existsByEmail(request.getEmail())) throw new RuntimeException("이미 존재하는 이메일입니다.");
+        if(usersRepository.existsByEmailAndProvider(request.getEmail(), AuthProvider.EMAIL)) throw new RuntimeException("이미 존재하는 이메일입니다.");
 
         Users user = Users.builder()
                 .email(request.getEmail())
@@ -98,9 +98,10 @@ public class AuthServiceImpl implements AuthService{
 
         // 2. 토큰에서 사용자 이메일 추출
         String email = jwtTokenProvider.getUserEmail(refreshToken);
+        Long userId = jwtTokenProvider.getUserId(refreshToken);
 
         // 3. DB에서 사용자 조회
-        Users user = usersRepository.findByEmail(email)
+        Users user = usersRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
 
         // 4. DB에 저장된 리프레시 토큰과 일치하는지 확인
