@@ -53,7 +53,8 @@ public class SecurityConfig {
                         // 2. [중요] Preflight 요청(OPTIONS 메서드)은 인증 없이 모두 허용
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/api/v1/curation/**", "/api/v1/aiq/**").hasRole("USER")
+                        .requestMatchers("/api/v1/curation/**", "/api/v1/aiq/**")
+                        .hasAnyRole("USER", "GUEST")
                         .requestMatchers("/api/auth/**", "/error").permitAll()
                         .requestMatchers("/login/**", "/oauth2/**").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()

@@ -55,6 +55,10 @@ public class AuthController {
         mailService.sendMagicLink(email , origin);
         return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK, "인증 이메일이 발송되었습니다.", null));
     }
+    @PostMapping("/guest")
+    public ResponseEntity<ApiResponse<TokenResponseDTO>> guestLogin() {
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK, "비회원 로그인 성공", authService.loginAsGuest()));
+    }
 
     @GetMapping("/verify-link")
     @Operation(summary = "매직링크 검증")

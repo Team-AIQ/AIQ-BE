@@ -1,5 +1,6 @@
 package cmc.aiq.aiq.service;
 
+import cmc.aiq.aiq.domain.ENUM.UserRole;
 import cmc.aiq.aiq.dto.SignUpRequestDTO;
 import cmc.aiq.aiq.global.security.jwt.JwtTokenProvider;
 import cmc.aiq.aiq.domain.ENUM.AuthProvider;
@@ -176,5 +177,41 @@ public class AuthServiceImpl implements AuthService{
 
         // 3. 사용 완료된 토큰 삭제
         redisTemplate.delete("RESET_TOKEN:" + resetToken);
+    }
+
+    @Transactional
+    public TokenResponseDTO loginAsGuest() {
+        // 1. 고유한 식별자 생성 (중복 방지용 8자리)
+        String uuid = UUID.randomUUID().toString().substring(0, 8);
+
+        // 2. 임시 유저 생성 (엔티티 제약조건 충족)
+        Users guestUser = Users.builder()
+                .email("guest_" + uuid + "@aiq.com") // 중복되지 않는 가짜 이메일
+                .nickname("게스트_" + uuid)
+                .provider(AuthProvider.GUEST)
+                .currentCredits(0L)
+                .build();
+
+        usersRepository.save(guestUser);
+
+        // 3. 토큰 생성 (기존 JwtTokenProvider 활용)
+        String accessToken = jwtTokenProvider.createAccessToken(
+                guestUser.getId(),
+                guestUser.getEmail(),
+                UserRole.ROLE_GUEST.name(),
+                guestUser.getNickname()
+        );
+
+        String refreshToken = jwtTokenProvider.createRefreshToken(
+                guestUser.getId(),
+                guestUser.getEmail(),
+                UserRole.ROLE_GUEST.name(),
+                false
+        );
+
+        // DB에 리프레시 토큰 업데이트
+        guestUser.updateRefreshToken(refreshToken);
+
+        return new TokenResponseDTO(accessToken, refreshToken);
     }
 }

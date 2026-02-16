@@ -12,4 +12,5 @@ public interface AuthService {
     void sendResetCode(String email) throws MessagingException;
     String verifyResetCode(String email, String code);
     void resetPassword(String resetToken, String newPassword);
+    TokenResponseDTO loginAsGuest();
 }
