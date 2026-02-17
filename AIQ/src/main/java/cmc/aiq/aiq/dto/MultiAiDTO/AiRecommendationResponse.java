@@ -6,6 +6,8 @@ import dev.langchain4j.model.output.structured.Description;
 import java.util.List;
 
 public record AiRecommendationResponse(
+        @Description("응답을 제공한 AI 모델명 (예: GPT, Gemini  등)")
+        String modelName,
         @Description("3개의 추천 모델 리스트")
         List<ProductRecommendation> recommendations,
 

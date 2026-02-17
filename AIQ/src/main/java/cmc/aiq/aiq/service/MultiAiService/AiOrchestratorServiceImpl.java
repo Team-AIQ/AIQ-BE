@@ -106,7 +106,7 @@ public class AiOrchestratorServiceImpl implements AiOrchestratorService {
 
                         // 4) 저장 및 전송 (우리가 만든 제네릭 saveCompletion 사용)
                         AiResponse reportRecord = saveInitialPending(queries, "GPT", ResponseType.FINAL_REPORT);
-                        saveCompletion(reportRecord.getId(), reportResult, reportStartTime);
+                        saveCompletion(reportRecord.getId(), reportResult,reportResult.content(), reportStartTime);
 
                         sendSse(emitter, "FINAL_REPORT", reportResult.content());
                         sendSse(emitter, "finish", "done");
@@ -136,13 +136,20 @@ public class AiOrchestratorServiceImpl implements AiOrchestratorService {
                 RecommendationAgent agent = AiServices.create(RecommendationAgent.class, model);
                 // 1. Result 객체로 수신 (데이터 + 토큰 정보 포함)
                 Result<AiRecommendationResponse> result = agent.generate(systemPrompt, question);
+                AiRecommendationResponse aiOutput = result.content();
 
+                AiRecommendationResponse finalResponse = new AiRecommendationResponse(// DB에서 가져온 ID
+                        modelName,    // 메서드 파라미터로 받은 이름
+                        aiOutput.recommendations(),
+                        aiOutput.specGuide(),
+                        aiOutput.finalWord()
+                );
 
                 // 2. 프론트엔드로 즉시 전송 (DTO 전송)
-                sendSse(emitter, modelName + "_ANSWER", result.content());
+                sendSse(emitter, modelName + "_ANSWER", finalResponse);
 
                 // 3. DB 저장 (Result 객체 통째로 넘김)
-                saveCompletion(responseId, result, startTime);
+                saveCompletion(responseId, result,finalResponse, startTime);
 
                 return result.content();
             } catch (Exception e) {
@@ -178,7 +185,7 @@ public class AiOrchestratorServiceImpl implements AiOrchestratorService {
 
     @Override
     @Transactional
-    public <T> void saveCompletion(Long recordId, Result<T> result, long startTime) {
+    public <T> void saveCompletion(Long recordId, Result<T> result,T content, long startTime) {
         try {
             AiResponse record = aiResponseRepository.findByIdWithModel(recordId)
                     .orElseThrow(() -> new RuntimeException("저장할 레코드를 찾을 수 없습니다."));
@@ -199,7 +206,7 @@ public class AiOrchestratorServiceImpl implements AiOrchestratorService {
 
             // 2. 객체를 JSON 문자열로 직렬화 (content 필드용)
             // objectMapper가 aiResponse가 어떤 객체든 알아서 JSON으로 구워줍니다.
-            String jsonContent = objectMapper.writeValueAsString(result.content());
+            String jsonContent = objectMapper.writeValueAsString(content);
 
             log.info("엔티티에 전달될 최종 메타데이터: {}", metadata);
             // 3. 엔티티 비즈니스 로직 호출

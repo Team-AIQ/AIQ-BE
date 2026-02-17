@@ -19,5 +19,5 @@ public interface AiOrchestratorService {
                                                    String question, Queries queries, SseEmitter emitter, SecurityContext context);
     void updateToFailed(Long recordId, String error);
     AiResponse saveInitialPending(Queries queries, String modelName, ResponseType type);
-    <T> void saveCompletion(Long recordId, Result<T> result, long startTime);
+    <T> void saveCompletion(Long recordId, Result<T> result,T content, long startTime);
 }
