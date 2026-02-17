@@ -1,5 +1,6 @@
 package cmc.aiq.aiq.global.security.jwt;
 
+import cmc.aiq.aiq.global.security.CustomUserDetails;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
@@ -100,7 +101,6 @@ public class JwtTokenProvider {
             throw new RuntimeException("권한 정보가 없는 토큰입니다.");
         }
 
-
         Collection<? extends GrantedAuthority> authorities =
                 Arrays.stream(claims.get("auth").toString().split(","))
                         .map(role -> {
@@ -109,9 +109,15 @@ public class JwtTokenProvider {
                             return new SimpleGrantedAuthority(roleName);
                         })
                         .collect(Collectors.toList());
+        Long userId = claims.get("userId", Long.class);
 
-        // Spring Security의 User 객체 생성 (비밀번호는 보안상 빈 값)
-        User principal = new User(claims.getSubject(), "", authorities);
+        // 2. 기본 User 대신 우리가 만든 CustomUserDetails를 생성합니다.
+        CustomUserDetails principal = new CustomUserDetails(
+                claims.getSubject(),
+                "",
+                authorities,
+                userId // ID를 같이 저장!
+        );
         return new UsernamePasswordAuthenticationToken(principal, token, authorities);
     }
 

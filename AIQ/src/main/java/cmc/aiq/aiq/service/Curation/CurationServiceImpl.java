@@ -1,14 +1,11 @@
 package cmc.aiq.aiq.service.Curation;
 
-import cmc.aiq.aiq.domain.CategoryAttributes;
-import cmc.aiq.aiq.domain.CurationSessions;
-import cmc.aiq.aiq.domain.Queries;
-import cmc.aiq.aiq.domain.Users;
+import cmc.aiq.aiq.domain.*;
+import cmc.aiq.aiq.domain.ENUM.ResponseType;
+import cmc.aiq.aiq.dto.FinalReport.FinalReportResponse;
+import cmc.aiq.aiq.dto.History.HistoryResponseDTO;
 import cmc.aiq.aiq.dto.Quration.*;
-import cmc.aiq.aiq.repository.CategoryAttributesRepository;
-import cmc.aiq.aiq.repository.CurationSessionsRepository;
-import cmc.aiq.aiq.repository.QueriesRepository;
-import cmc.aiq.aiq.repository.UsersRepository;
+import cmc.aiq.aiq.repository.*;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -16,11 +13,13 @@ import dev.langchain4j.model.embedding.EmbeddingModel;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -28,6 +27,7 @@ import java.util.Optional;
 public class CurationServiceImpl implements CurationService{
     private final QueriesRepository queriesRepository;
     private final CategoryAttributesRepository categoryRepository;
+    private final AiResponseRepository aiResponseRepository;
     private final EmbeddingModel embeddingModel;
     private final CurationAgent curationAgent;   // 이제 정상 작동하는 AI 비서
     private final UsersRepository usersRepository;
@@ -174,5 +174,41 @@ public class CurationServiceImpl implements CurationService{
 
 
         log.info("QueryID {}에 대한 사용자 답변 저장 완료", request.getQueryId());
+    }
+    @Transactional
+    @Override
+    public List<HistoryResponseDTO> getUserHistory(Long userId) {
+        // ⭐️ 이메일로 유저 찾기(userRepository.findByEmail) 과정이 생략됨!
+        return queriesRepository.findAllByUserIdOrderByCreatedAtDesc(userId)
+                .stream()
+                .map(q -> new HistoryResponseDTO(
+                        q.getId(),
+                        q.getQuestion(),
+                        q.getCreatedAt()
+                ))
+                .collect(Collectors.toList());
+    }
+    @Transactional
+    @Override
+    public FinalReportResponse getFinalReportOnly(Long userId, Long queryId) {
+        // 1. 해당 질문이 존재하는지 + 요청한 유저의 것인지 확인
+        Queries query = queriesRepository.findById(queryId)
+                .orElseThrow(() -> new RuntimeException("해당 기록을 찾을 수 없습니다."));
+
+        if (!query.getUser().getId().equals(userId)) {
+            throw new AccessDeniedException("본인의 보고서만 열람할 수 있습니다.");
+        }
+
+        // 2. 최종 보고서 데이터만 가져오기
+        AiResponse reportResponse = aiResponseRepository.findByQueriesIdAndResponseType(queryId, ResponseType.FINAL_REPORT)
+                .orElseThrow(() -> new RuntimeException("최종 보고서가 생성되지 않은 질문입니다."));
+
+        // 3. String(JSON)을 다시 객체(FinalReportResponse)로 변환
+        try {
+            return objectMapper.readValue(reportResponse.getContent(), FinalReportResponse.class);
+        } catch (JsonProcessingException e) {
+            log.error("보고서 파싱 실패: {}", e.getMessage());
+            throw new RuntimeException("보고서 데이터를 읽는 중 오류가 발생했습니다.");
+        }
     }
 }

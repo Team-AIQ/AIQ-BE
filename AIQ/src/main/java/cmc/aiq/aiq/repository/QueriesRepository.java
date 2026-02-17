@@ -4,8 +4,10 @@ import cmc.aiq.aiq.domain.Queries;
 import cmc.aiq.aiq.domain.Users;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface QueriesRepository extends JpaRepository<Queries, Long> {
+    List<Queries> findAllByUserIdOrderByCreatedAtDesc(Long userId);
 
 }

@@ -1,9 +1,12 @@
 package cmc.aiq.aiq.controller;
 
 import cmc.aiq.aiq.dto.ApiResponse;
+import cmc.aiq.aiq.dto.FinalReport.FinalReportResponse;
+import cmc.aiq.aiq.dto.History.HistoryResponseDTO;
 import cmc.aiq.aiq.dto.Quration.CurationRequestDTO;
 import cmc.aiq.aiq.dto.Quration.CurationResponseDTO;
 import cmc.aiq.aiq.dto.Quration.CurationSubmitRequestDTO;
+import cmc.aiq.aiq.global.security.CustomUserDetails;
 import cmc.aiq.aiq.service.Curation.CurationService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -12,10 +15,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/curation")
@@ -49,5 +52,24 @@ public class CurationController {
         curationService.saveUserAnswers(request);
 
         return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK, "사용자 답변이 성공적으로 저장되었습니다.", null));
+    }
+    @GetMapping("/history")
+    public ResponseEntity<ApiResponse<List<HistoryResponseDTO>>> getMyHistory(
+            @AuthenticationPrincipal CustomUserDetails user // Spring Security의 User 객체
+    ) {
+        Long userId = user.getUserId();
+
+        // 서비스에도 ID만 바로 넘겨주면 됩니다.
+        List<HistoryResponseDTO> history = curationService.getUserHistory(userId);
+
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK, "히스토리 조회 성공", history));
+    }
+    @GetMapping("/history/{queryId}/report")
+    public ResponseEntity<ApiResponse<FinalReportResponse>> getReport(
+            @AuthenticationPrincipal CustomUserDetails user,
+            @PathVariable Long queryId
+    ) {
+        FinalReportResponse report = curationService.getFinalReportOnly(user.getUserId(), queryId);
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK, "최종 보고서 조회 성공", report));
     }
 }
