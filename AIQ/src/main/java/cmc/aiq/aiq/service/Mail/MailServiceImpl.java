@@ -42,6 +42,7 @@ public class MailServiceImpl implements MailService {
         MimeMessage message = mailSender.createMimeMessage();
         // true는 multipart 메시지를 사용하겠다는 의미 (이미지 등 첨부 가능)
         MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+        helper.setFrom("yujiseong588@gmail.com");
 
         helper.setTo(email);
         helper.setSubject("[AIQ] 본인 인증 확인 메일입니다.");
@@ -53,6 +54,7 @@ public class MailServiceImpl implements MailService {
         helper.setText(htmlContent, true);
 
         mailSender.send(message);
+        log.info("메일 발송 완료: {}", email);
     }
 
     // 비밀번호 찾기 인증코드 발송
