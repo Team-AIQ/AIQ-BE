@@ -76,7 +76,7 @@ public class AuthController {
                 redirectUrl = "http://192.168.219.101:8080://signup-success?email=" + email;
             } else {
                 // 웹: Next.js의 가입 완료 혹은 추가 정보 입력 페이지
-                redirectUrl = "exp://192.168.219.100:8081/--/signup-success?email=" + email;
+                redirectUrl = "http://localhost:3000/signup?verified=1&email=" + email;
             }
 
             return ResponseEntity.status(HttpStatus.FOUND) // 302 Redirect

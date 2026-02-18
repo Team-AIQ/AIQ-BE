@@ -62,11 +62,20 @@ public class MailServiceImpl implements MailService {
         MimeMessage message = mailSender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
-        helper.setTo(email);
-        helper.setSubject("[AIQ] 비밀번호 재설정 인증 코드");
+        // ⭐️ 이 줄이 없으면 브레보에서 메일 발송을 차단합니다!
+        // 반드시 브레보 대시보드에 등록된 Verified 이메일을 넣으세요.
+        helper.setFrom("yujiseong588@gmail.com");
 
-        // HTML 템플릿에 코드 삽입
-        String htmlContent = "<h1>인증 코드: " + code + "</h1>";
+        helper.setTo(email);
+        helper.setSubject("[AIQ] 비밀번호 재설정 인증 코드입니다.");
+
+        String htmlContent = "<div style='text-align:center; padding:20px; border:1px solid #ddd;'>"
+                + "<h2>비밀번호 재설정 인증 코드</h2>"
+                + "<p>아래 6자리 코드를 입력창에 입력해 주세요.</p>"
+                + "<h1 style='color:#007bff;'>" + code + "</h1>"
+                + "<p>이 코드는 5분 동안 유효합니다.</p>"
+                + "</div>";
+
         helper.setText(htmlContent, true);
 
         mailSender.send(message);

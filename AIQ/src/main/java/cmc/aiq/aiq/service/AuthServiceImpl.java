@@ -17,6 +17,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Random;
@@ -138,13 +139,23 @@ public class AuthServiceImpl implements AuthService{
                 .orElseThrow(() -> new RuntimeException("가입되지 않은 이메일입니다."));
 
         // 2. 인증 코드 생성
-        String code = String.format("%06d", new Random().nextInt(1000000));
+        SecureRandom secureRandom = new SecureRandom();
+        int number = secureRandom.nextInt(1000000);
+        String code = String.format("%06d", number);
 
-        // 3. Redis 저장 (5분 유효)
-        redisTemplate.opsForValue().set("PWD_CODE:" + email, code, Duration.ofMinutes(5));
+        String redisKey = "PWD_CODE:" + email;
+        redisTemplate.opsForValue().set(redisKey, code, Duration.ofMinutes(5));
 
-        // 4. 메일 발송 의뢰 (MailService 호출)
-        mailService.sendVerificationCode(email, code);
+        // 4. 메일 발송 의뢰
+        try {
+            mailService.sendVerificationCode(email, code);
+            log.info("비밀번호 재설정 메일 발송 요청 성공: email={}, code={}", email, code);
+        } catch (MessagingException e) {
+            log.error("메일 발송 중 오류 발생: {}", e.getMessage());
+            // 메일 발송 실패 시 Redis에 저장된 코드 삭제 (선택 사항)
+            redisTemplate.delete(redisKey);
+            throw e;
+        }
     }
 
     // 비밀번호 재설정 인증코드 대조 로직
