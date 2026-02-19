@@ -32,9 +32,12 @@ import org.springframework.security.task.DelegatingSecurityContextAsyncTaskExecu
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -60,7 +63,7 @@ public class AiOrchestratorServiceImpl implements AiOrchestratorService {
 
     @Override
     @Transactional
-    public void executeParallelAi(Long queryId, SseEmitter emitter) {
+    public void executeParallelAi(Long queryId, List<String> selectedModels, SseEmitter emitter) {
         SecurityContext mainContext = SecurityContextHolder.getContext();
         // 1. 기초 데이터 로드
         Queries queries = queriesRepository.findById(queryId)
@@ -85,17 +88,34 @@ public class AiOrchestratorServiceImpl implements AiOrchestratorService {
 
 
         // 5. [Scatter] 비동기 병렬 호출 시작 (반환 타입이 AiRecommendationResponse로 변경됨)
-        CompletableFuture<AiRecommendationResponse> gptFuture = callAi(gptModel, "GPT", systemPrompt, userQuestion, queries, emitter, mainContext);
-        CompletableFuture<AiRecommendationResponse> geminiFuture = callAi(geminiModel, "Gemini", systemPrompt, userQuestion, queries, emitter, mainContext);
-        CompletableFuture<AiRecommendationResponse> perplexityFuture = callAi(perplexityModel, "Perplexity", systemPrompt, userQuestion, queries, emitter,  mainContext);
+        List<CompletableFuture<AiRecommendationResponse>> futures = new ArrayList<>();
+
+        // 입력된 모델 리스트 정제 (공백 제거)
+        List<String> targets = selectedModels.stream()
+                .map(String::trim)
+                .collect(Collectors.toList());
+
+        if (targets.contains("GPT")) {
+            futures.add(callAi(gptModel, "GPT", systemPrompt, userQuestion, queries, emitter, mainContext));
+        }
+        if (targets.contains("Gemini")) {
+            futures.add(callAi(geminiModel, "Gemini", systemPrompt, userQuestion, queries, emitter, mainContext));
+        }
+        if (targets.contains("Perplexity")) {
+            futures.add(callAi(perplexityModel, "Perplexity", systemPrompt, userQuestion, queries, emitter, mainContext));
+        }
 
         // 6. [Gather] 모든 응답 완료 후 최종 보고서 생성
-        CompletableFuture.allOf(gptFuture, geminiFuture, perplexityFuture)
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
                 .thenRunAsync(() -> {
                     SecurityContextHolder.setContext(mainContext);
                     try {
                         // 1) 비동기 결과 취합 (join)
-                        String combinedText = formatResponsesForReport(gptFuture.join(), geminiFuture.join(), perplexityFuture.join());
+                        List<AiRecommendationResponse> responses = futures.stream()
+                                .map(CompletableFuture::join)
+                                .collect(Collectors.toList());
+
+                        String combinedText = formatResponsesForReport(responses);
                         log.info("모든 모델 응답 완료. 최종 보고서 생성 시작...");
 
                         String systemPromptTemplate = promptManager.getProcessedPrompt("REPORT_AGENT_SYSTEM", Map.of());
@@ -252,12 +272,14 @@ public class AiOrchestratorServiceImpl implements AiOrchestratorService {
         }
     }
 
-    private String formatResponsesForReport(AiRecommendationResponse gpt, AiRecommendationResponse gemini, AiRecommendationResponse perp) {
+    private String formatResponsesForReport(List<AiRecommendationResponse> responses) {
         StringBuilder sb = new StringBuilder();
 
-        if (gpt != null) appendModelOutput(sb, "GPT", gpt);
-        if (gemini != null) appendModelOutput(sb, "GEMINI", gemini);
-        if (perp != null) appendModelOutput(sb, "PERPLEXITY", perp);
+        for (AiRecommendationResponse response : responses) {
+            if (response != null) {
+                appendModelOutput(sb, response.modelName(), response);
+            }
+        }
 
         return sb.toString();
     }

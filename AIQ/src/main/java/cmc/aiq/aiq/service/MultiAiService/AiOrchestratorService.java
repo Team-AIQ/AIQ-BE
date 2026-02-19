@@ -9,11 +9,12 @@ import dev.langchain4j.service.Result;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 public interface AiOrchestratorService {
-    void executeParallelAi(Long queryId, SseEmitter emitter);
+    void executeParallelAi(Long queryId, List<String> selectedModels, SseEmitter emitter);
 //    Map<String, AiRecommendationResponse> testExecuteParallelAi(Long queryId, String userQuestion);
     CompletableFuture<AiRecommendationResponse> callAi(ChatLanguageModel model, String modelName, String systemPrompt,
                                                    String question, Queries queries, SseEmitter emitter, SecurityContext context);
