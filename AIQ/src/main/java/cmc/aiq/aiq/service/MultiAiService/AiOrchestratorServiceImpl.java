@@ -12,6 +12,7 @@ import cmc.aiq.aiq.repository.AiResponseRepository;
 import cmc.aiq.aiq.repository.CurationSessionsRepository;
 import cmc.aiq.aiq.repository.ModelsRepository;
 import cmc.aiq.aiq.repository.QueriesRepository;
+import cmc.aiq.aiq.service.ImageSearch.ReportEnrichmentService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.data.message.AiMessage;
@@ -54,6 +55,9 @@ public class AiOrchestratorServiceImpl implements AiOrchestratorService {
     private final CurationTextBuilder curationTextBuilder;
     private final DelegatingSecurityContextAsyncTaskExecutor taskExecutor;
 
+    private final ReportEnrichmentService reportEnrichmentService;
+
+
     @Override
     @Transactional
     public void executeParallelAi(Long queryId, SseEmitter emitter) {
@@ -95,7 +99,7 @@ public class AiOrchestratorServiceImpl implements AiOrchestratorService {
                         log.info("모든 모델 응답 완료. 최종 보고서 생성 시작...");
 
                         String systemPromptTemplate = promptManager.getProcessedPrompt("REPORT_AGENT_SYSTEM", Map.of());
-                        long reportStartTime = System.currentTimeMillis();
+//                        long reportStartTime = System.currentTimeMillis();
                         Result<FinalReportResponse> reportResult = reportAgent.generateReport(
                                 systemPromptTemplate, // DB에서 꺼낸 그 날카로운 프롬프트!
                                 userQuestion,
@@ -104,11 +108,31 @@ public class AiOrchestratorServiceImpl implements AiOrchestratorService {
                                 categoryName
                         );
 
-                        // 4) 저장 및 전송 (우리가 만든 제네릭 saveCompletion 사용)
-                        AiResponse reportRecord = saveInitialPending(queries, "GPT", ResponseType.FINAL_REPORT);
-                        saveCompletion(reportRecord.getId(), reportResult,reportResult.content(), reportStartTime);
+//                        // 4) 저장 및 전송 (우리가 만든 제네릭 saveCompletion 사용)
+//                        AiResponse reportRecord = saveInitialPending(queries, "GPT", ResponseType.FINAL_REPORT);
+//                        saveCompletion(reportRecord.getId(), reportResult,reportResult.content(), reportStartTime);
+//
+//                        sendSse(emitter, "FINAL_REPORT", reportResult.content());
+//                        sendSse(emitter, "finish", "done");
+//                        emitter.complete();
+                        FinalReportResponse rawReport = reportResult.content();
 
-                        sendSse(emitter, "FINAL_REPORT", reportResult.content());
+                        // ⭐️ [추가] 실시간 구글 이미지 검색 및 리포트 보완
+                        log.info("제품 이미지 검색 시작...");
+                        FinalReportResponse enrichedReport = reportEnrichmentService
+                                .enrichReportWithImages(rawReport)
+                                .join(); // 검색 완료될 때까지 잠시 대기
+
+                        // 3) 저장 (PostgreSQL의 AiResponse 테이블)
+                        // content 컬럼은 TEXT이므로 JSON 문자열로 변환하여 저장
+                        long reportStartTime = System.currentTimeMillis();
+                        AiResponse reportRecord = saveInitialPending(queries, "GPT", ResponseType.FINAL_REPORT);
+
+                        // saveCompletion 내부에서 enrichedReport를 JSON String으로 변환하여 content에 저장하도록 구현
+                        saveCompletion(reportRecord.getId(), reportResult, enrichedReport, reportStartTime);
+
+                        // 4) SSE 전송 (이미지가 포함된 최종본)
+                        sendSse(emitter, "FINAL_REPORT", enrichedReport);
                         sendSse(emitter, "finish", "done");
                         emitter.complete();
 
