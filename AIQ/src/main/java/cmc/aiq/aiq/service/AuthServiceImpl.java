@@ -225,4 +225,20 @@ public class AuthServiceImpl implements AuthService{
 
         return new TokenResponseDTO(accessToken, refreshToken);
     }
+
+    @Override
+    @Transactional
+    public void withdrawUser(Long userId) {
+        Users user = usersRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+
+        // Users 엔티티에 정의된 탈퇴 메소드 호출
+        user.withdraw();
+
+        // 변경된 상태 저장
+        usersRepository.save(user);
+
+        // TODO: 필요 시 Redis 등 다른 곳에 저장된 세션 정보도 삭제
+        log.info("회원 탈퇴 처리 완료: userId={}", userId);
+    }
 }

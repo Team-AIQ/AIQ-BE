@@ -5,6 +5,7 @@ import cmc.aiq.aiq.dto.ApiResponse;
 import cmc.aiq.aiq.dto.LoginRequestDTO;
 import cmc.aiq.aiq.dto.SignUpRequestDTO;
 import cmc.aiq.aiq.dto.TokenResponseDTO;
+import cmc.aiq.aiq.global.security.CustomUserDetails;
 import cmc.aiq.aiq.service.AuthService;
 import cmc.aiq.aiq.service.Mail.MailService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -13,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
@@ -111,5 +113,12 @@ public class AuthController {
         authService.resetPassword(resetToken, newPassword);
         // 수정 완료 후 200 OK 또는 204 No Content
         return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK, "비밀번호 재설정 완료", null));
+    }
+
+    @DeleteMapping("/withdraw")
+    @Operation(summary = "회원 탈퇴", description = "현재 로그인된 사용자의 계정을 탈퇴 처리합니다.")
+    public ResponseEntity<ApiResponse<Void>> withdraw(@AuthenticationPrincipal CustomUserDetails userDetails) {
+        authService.withdrawUser(userDetails.getUserId());
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK, "회원 탈퇴가 성공적으로 처리되었습니다.", null));
     }
 }

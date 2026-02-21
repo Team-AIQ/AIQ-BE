@@ -13,4 +13,5 @@ public interface AuthService {
     String verifyResetCode(String email, String code);
     void resetPassword(String resetToken, String newPassword);
     TokenResponseDTO loginAsGuest();
+    void withdrawUser(Long userId);
 }
