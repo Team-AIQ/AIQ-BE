@@ -10,6 +10,9 @@ public record TopProduct(@Description("순위 (1~3)")
                          @Description("제품명")
                          String productName,
 
+                         @Description("제품의 고유 모델명 또는 제품 코드 (예: 'MK183KH/A')")
+                         String productCode,
+
                          @Description("제품의 실제 가격")
                          String price,
 

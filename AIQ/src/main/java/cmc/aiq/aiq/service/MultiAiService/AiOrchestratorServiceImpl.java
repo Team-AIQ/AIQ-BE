@@ -182,17 +182,15 @@ public class AiOrchestratorServiceImpl implements AiOrchestratorService {
                 Result<AiRecommendationResponse> result = agent.generate(systemPrompt, question);
                 AiRecommendationResponse aiOutput = result.content();
 
-                AiRecommendationResponse finalResponse = new AiRecommendationResponse(// DB에서 가져온 ID
-                        modelName,    // 메서드 파라미터로 받은 이름
+                AiRecommendationResponse finalResponse = new AiRecommendationResponse(
+                        modelName,
                         aiOutput.recommendations(),
                         aiOutput.specGuide(),
                         aiOutput.finalWord()
                 );
 
-                // 2. 프론트엔드로 즉시 전송 (DTO 전송)
                 sendSse(emitter, modelName + "_ANSWER", finalResponse);
 
-                // 3. DB 저장 (Result 객체 통째로 넘김)
                 saveCompletion(responseId, result,finalResponse, startTime);
 
                 return result.content();
@@ -287,7 +285,8 @@ public class AiOrchestratorServiceImpl implements AiOrchestratorService {
     private void appendModelOutput(StringBuilder sb, String modelName, AiRecommendationResponse response) {
         sb.append("[").append(modelName).append(" 추천 제품]\n");
         for (ProductRecommendation rec : response.recommendations()) {
-            sb.append("- 모델명: ").append(rec.modelName()).append("\n");
+            sb.append("- 모델명: ").append(rec.productName()).append("\n");
+            sb.append("- 제품 코드: ").append(rec.productCode()).append("\n");
             sb.append("  추천대상: ").append(rec.targetAudience()).append("\n");
             sb.append("  선정이유: ").append(String.join(", ", rec.selectionReasons())).append("\n");
         }

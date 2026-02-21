@@ -60,6 +60,7 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK, "비회원 로그인 성공", authService.loginAsGuest()));
     }
 
+    // 추후 메서드를 만들어서 로직 분리 예정
     @GetMapping("/verify-link")
     @Operation(summary = "매직링크 검증")
     public ResponseEntity<ApiResponse<String>> verifyMagicLink(@RequestParam String token) {
