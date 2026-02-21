@@ -75,6 +75,9 @@ dependencies {
     // 3. Gemini 관련 (0.35.0)
     implementation 'dev.langchain4j:langchain4j-google-ai-gemini:0.35.0'
 
+    implementation 'com.google.crypto.tink:tink:1.12.0'
+    
+
 
 }
 

@@ -88,5 +88,9 @@ public class Users {
         this.password = password;
     }
 
-
+    public void addCredits(Long amount) {
+        if (amount > 0) {
+            this.currentCredits += amount;
+        }
+    }
 }
