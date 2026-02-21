@@ -2,6 +2,7 @@ package cmc.aiq.aiq.controller;
 
 import cmc.aiq.aiq.domain.Users;
 import cmc.aiq.aiq.dto.ApiResponse;
+import cmc.aiq.aiq.dto.ChangePasswordRequestDTO;
 import cmc.aiq.aiq.dto.LoginRequestDTO;
 import cmc.aiq.aiq.dto.SignUpRequestDTO;
 import cmc.aiq.aiq.dto.TokenResponseDTO;
@@ -120,5 +121,15 @@ public class AuthController {
     public ResponseEntity<ApiResponse<Void>> withdraw(@AuthenticationPrincipal CustomUserDetails userDetails) {
         authService.withdrawUser(userDetails.getUserId());
         return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK, "회원 탈퇴가 성공적으로 처리되었습니다.", null));
+    }
+
+    @PatchMapping("/password/change")
+    @Operation(summary = "마이프로필에서 비밀번호 변경", description = "현재 로그인된 사용자가 자신의 비밀번호를 변경합니다.")
+    public ResponseEntity<ApiResponse<Void>> changePassword(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestBody ChangePasswordRequestDTO request
+    ) {
+        authService.changePassword(userDetails.getUserId(), request);
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK, "비밀번호가 성공적으로 변경되었습니다.", null));
     }
 }

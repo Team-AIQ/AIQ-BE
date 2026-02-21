@@ -50,7 +50,11 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 .authorizeHttpRequests(auth -> auth
-                        // 2. [중요] Preflight 요청(OPTIONS 메서드)은 인증 없이 모두 허용
+                        // 1. [수정] 인증이 필요한 API들을 permitAll() 보다 먼저 명시합니다.
+                        .requestMatchers(HttpMethod.DELETE, "/api/auth/withdraw").authenticated()
+                        .requestMatchers(HttpMethod.PATCH, "/api/auth/password/change").authenticated()
+
+                        // 2. Preflight 요청(OPTIONS 메서드)은 인증 없이 모두 허용
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/curation/history").hasRole("USER")
@@ -61,13 +65,10 @@ public class SecurityConfig {
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .anyRequest().authenticated()
                 )
-                // 1. JWT 필터 등록 (UsernamePasswordAuthenticationFilter보다 먼저 실행되어야 합니다)
+                // JWT 필터 등록
                 .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider),
                         UsernamePasswordAuthenticationFilter.class)
 
-//                .exceptionHandling(e -> e
-//                        .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
-//                )
                 .oauth2Login(oauth2 -> oauth2
                         .userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService))
                         .successHandler(oAuth2SuccessHandler)

@@ -1,6 +1,7 @@
 package cmc.aiq.aiq.service;
 
 import cmc.aiq.aiq.domain.ENUM.UserRole;
+import cmc.aiq.aiq.dto.ChangePasswordRequestDTO;
 import cmc.aiq.aiq.dto.SignUpRequestDTO;
 import cmc.aiq.aiq.global.security.jwt.JwtTokenProvider;
 import cmc.aiq.aiq.domain.ENUM.AuthProvider;
@@ -240,5 +241,29 @@ public class AuthServiceImpl implements AuthService{
 
         // TODO: 필요 시 Redis 등 다른 곳에 저장된 세션 정보도 삭제
         log.info("회원 탈퇴 처리 완료: userId={}", userId);
+    }
+
+    @Override
+    @Transactional
+    public void changePassword(Long userId, ChangePasswordRequestDTO request) {
+        // 1. 사용자 조회
+        Users user = usersRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+
+        // 2. 현재 비밀번호 확인
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
+            throw new RuntimeException("현재 비밀번호가 일치하지 않습니다.");
+        }
+
+        // 3. 새 비밀번호와 현재 비밀번호가 같은지 확인
+        if (request.getCurrentPassword().equals(request.getNewPassword())) {
+            throw new RuntimeException("새로운 비밀번호는 현재 비밀번호와 달라야 합니다.");
+        }
+
+        // 4. 새 비밀번호 암호화 및 업데이트
+        user.updatePassword(passwordEncoder.encode(request.getNewPassword()));
+        usersRepository.save(user);
+
+        log.info("비밀번호 변경 완료: userId={}", userId);
     }
 }

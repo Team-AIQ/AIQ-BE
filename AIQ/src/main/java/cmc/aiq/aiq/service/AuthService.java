@@ -1,5 +1,6 @@
 package cmc.aiq.aiq.service;
 
+import cmc.aiq.aiq.dto.ChangePasswordRequestDTO;
 import cmc.aiq.aiq.dto.LoginRequestDTO;
 import cmc.aiq.aiq.dto.SignUpRequestDTO;
 import cmc.aiq.aiq.dto.TokenResponseDTO;
@@ -14,4 +15,5 @@ public interface AuthService {
     void resetPassword(String resetToken, String newPassword);
     TokenResponseDTO loginAsGuest();
     void withdrawUser(Long userId);
+    void changePassword(Long userId, ChangePasswordRequestDTO request);
 }
