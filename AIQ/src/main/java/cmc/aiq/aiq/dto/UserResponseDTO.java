@@ -1,5 +1,6 @@
 package cmc.aiq.aiq.dto;
 
+import cmc.aiq.aiq.domain.ENUM.AuthProvider;
 import cmc.aiq.aiq.domain.Users;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
@@ -21,12 +22,16 @@ public class UserResponseDTO {
     @Schema(description = "현재 보유 크레딧", example = "100")
     private Long currentCredits;
 
+    @Schema(description = "로그인 방식", example = "EMAIL")
+    private AuthProvider authProvider;
+
     public static UserResponseDTO from(Users user) {
         return UserResponseDTO.builder()
                 .userId(user.getId())
                 .email(user.getEmail())
                 .nickname(user.getNickname())
                 .currentCredits(user.getCurrentCredits())
+                .authProvider(user.getProvider()) // authProvider 필드 추가
                 .build();
     }
 }
