@@ -35,5 +35,7 @@ out/
 
 ### VS Code ###
 .vscode/
+
 # API Keys and Secrets
 application-secrets.properties
+.env
