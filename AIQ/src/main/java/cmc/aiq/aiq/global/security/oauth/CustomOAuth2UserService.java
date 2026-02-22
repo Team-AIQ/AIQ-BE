@@ -48,7 +48,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                         .provider(authProvider)
                         .providerId(providerId)
                         .initialLoginAt(time)
-                        .currentCredits(50L)
+                        .currentCredits(20L)
                         .build()));
 
         return oAuth2User;

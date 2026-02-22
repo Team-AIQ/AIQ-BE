@@ -50,11 +50,12 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 .authorizeHttpRequests(auth -> auth
-                        // 1. [수정] 인증이 필요한 API들을 permitAll() 보다 먼저 명시합니다.
+                        // 인증이 필요한 API들을 명시적으로 선언
+                        .requestMatchers(HttpMethod.GET, "/api/users/me").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/api/auth/withdraw").authenticated()
                         .requestMatchers(HttpMethod.PATCH, "/api/auth/password/change").authenticated()
 
-                        // 2. Preflight 요청(OPTIONS 메서드)은 인증 없이 모두 허용
+                        // Preflight 요청(OPTIONS 메서드)은 인증 없이 모두 허용
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/curation/history").hasRole("USER")

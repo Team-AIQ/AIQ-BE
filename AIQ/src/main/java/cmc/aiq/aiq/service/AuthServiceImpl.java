@@ -44,7 +44,7 @@ public class AuthServiceImpl implements AuthService{
                 .password(passwordEncoder.encode(request.getPassword()))
                 .nickname(request.getNickname())
                 .provider(AuthProvider.EMAIL)
-                .currentCredits(50L)
+                .currentCredits(20L)
                 .build();
         usersRepository.save(user);
     }
@@ -201,7 +201,7 @@ public class AuthServiceImpl implements AuthService{
                 .email("guest_" + uuid + "@aiq.com") // 중복되지 않는 가짜 이메일
                 .nickname("게스트_" + uuid)
                 .provider(AuthProvider.GUEST)
-                .currentCredits(0L)
+                .currentCredits(20L)
                 .build();
 
         usersRepository.save(guestUser);
