@@ -119,6 +119,7 @@ public class AuthController {
     @DeleteMapping("/withdraw")
     @Operation(summary = "회원 탈퇴", description = "현재 로그인된 사용자의 계정을 탈퇴 처리합니다.")
     public ResponseEntity<ApiResponse<Void>> withdraw(@AuthenticationPrincipal CustomUserDetails userDetails) {
+        log.info("회원 탈퇴 처리 로직 실행 ");
         authService.withdrawUser(userDetails.getUserId());
         return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK, "회원 탈퇴가 성공적으로 처리되었습니다.", null));
     }
