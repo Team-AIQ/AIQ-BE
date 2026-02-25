@@ -13,37 +13,35 @@ import java.util.concurrent.CompletableFuture;
 @Service
 @RequiredArgsConstructor
 @Log4j2
-public class ReportEnrichmentServiceImpl implements ReportEnrichmentService{
+public class ReportEnrichmentServiceImpl implements ReportEnrichmentService {
 
     private final GoogleImageSearchService imageSearchService;
     private static final String PLACEHOLDER_IMAGE = "https://placehold.co/600x400?text=No+Image";
 
     public CompletableFuture<FinalReportResponse> enrichReportWithImages(FinalReportResponse report) {
 
-        // TOP 3 제품 각각에 대해 비동기 검색 수행
         List<CompletableFuture<TopProduct>> productFutures = report.topProducts().stream()
                 .map(product -> CompletableFuture.supplyAsync(() -> {
                     String imageUrl = PLACEHOLDER_IMAGE;
+                    String productName = product.productName();
+                    String productCode = product.productCode();
 
-                    // 1. 제품 코드가 있으면 제품 코드로 먼저 검색
-                    if (StringUtils.hasText(product.productCode())) {
-                        imageUrl = imageSearchService.getProductImageUrl(product.productCode());
-                        log.info("제품 코드로 이미지 검색 시도: {} -> 결과: {}", product.productCode(), imageUrl);
+                    if (isProductCodeValid(productName, productCode)) {
+                        imageUrl = imageSearchService.getProductImageUrl(productCode);
+                        log.info("제품 코드로 이미지 검색 시도: {} -> 결과: {}", productCode, imageUrl);
                     }
 
-                    // 2. 제품 코드로 검색 실패 시 (플레이스홀더 반환 시), 제품명으로 다시 검색
-                    if (PLACEHOLDER_IMAGE.equals(imageUrl) && StringUtils.hasText(product.productName())) {
-                        imageUrl = imageSearchService.getProductImageUrl(product.productName());
-                        log.info("제품명으로 이미지 재검색 시도: {} -> 결과: {}", product.productName(), imageUrl);
+                    if (PLACEHOLDER_IMAGE.equals(imageUrl) && StringUtils.hasText(productName)) {
+                        imageUrl = imageSearchService.getProductImageUrl(productName);
+                        log.info("제품명으로 이미지 재검색 시도: {} -> 결과: {}", productName, imageUrl);
                     }
 
-                    // Record는 불변이므로 새로운 객체 생성 (이미지 URL 교체)
                     return new TopProduct(
                             product.rank(),
-                            product.productName(),
-                            product.productCode(), // DTO에 맞게 productCode 추가
+                            productName,
+                            productCode,
                             product.price(),
-                            imageUrl, // 최종적으로 결정된 이미지 URL
+                            imageUrl,
                             product.specs(),
                             product.lowestPriceLink(),
                             product.comparativeAnalysis()
@@ -51,19 +49,30 @@ public class ReportEnrichmentServiceImpl implements ReportEnrichmentService{
                 }))
                 .toList();
 
-        // 모든 검색이 완료되면 리포트 재구성
         return CompletableFuture.allOf(productFutures.toArray(new CompletableFuture[0]))
                 .thenApply(v -> {
                     List<TopProduct> enrichedProducts = productFutures.stream()
                             .map(CompletableFuture::join)
                             .toList();
 
+                    // [수정] 새로운 생성자 시그니처에 맞게 aiqRecommendationReason 필드를 전달합니다.
                     return new FinalReportResponse(
                             report.consensus(),
                             report.decisionBranches(),
+                            report.aiqRecommendationReason(), // <-- 이 부분을 추가했습니다.
                             enrichedProducts,
                             report.finalWord()
                     );
                 });
+    }
+
+    private boolean isProductCodeValid(String productName, String productCode) {
+        if (!StringUtils.hasText(productName) || !StringUtils.hasText(productCode)) {
+            return false;
+        }
+        String simplifiedProductName = productName.replaceAll("[^a-zA-Z0-9]", "").toLowerCase();
+        String simplifiedProductCode = productCode.replaceAll("[^a-zA-Z0-9]", "").toLowerCase();
+
+        return simplifiedProductName.contains(simplifiedProductCode);
     }
 }

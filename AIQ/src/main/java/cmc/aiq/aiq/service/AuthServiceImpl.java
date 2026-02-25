@@ -11,12 +11,12 @@ import cmc.aiq.aiq.dto.TokenResponseDTO;
 import cmc.aiq.aiq.repository.UsersRepository;
 import cmc.aiq.aiq.service.Mail.MailService;
 import jakarta.mail.MessagingException;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional; // <-- 올바른 어노테이션으로 수정
 
 import java.security.SecureRandom;
 import java.time.Duration;
@@ -35,6 +35,7 @@ public class AuthServiceImpl implements AuthService{
     private final MailService mailService;
     private final StringRedisTemplate redisTemplate;
 
+    @Override
     @Transactional
     public void signUp(SignUpRequestDTO request){
         if(usersRepository.existsByEmailAndProvider(request.getEmail(), AuthProvider.EMAIL)) throw new RuntimeException("이미 존재하는 이메일입니다.");
@@ -44,11 +45,12 @@ public class AuthServiceImpl implements AuthService{
                 .password(passwordEncoder.encode(request.getPassword()))
                 .nickname(request.getNickname())
                 .provider(AuthProvider.EMAIL)
-                .currentCredits(20L)
+                .currentCredits(50L)
                 .build();
         usersRepository.save(user);
     }
 
+    @Override
     @Transactional
     public TokenResponseDTO login(LoginRequestDTO loginrequestDTO) {
 
@@ -71,75 +73,43 @@ public class AuthServiceImpl implements AuthService{
         return new TokenResponseDTO(accessToken, refreshToken);
     }
 
-    @Transactional
-    public String refreshAccessToken(String refreshToken) {
-        // 1. Refresh Token 유효성 검사
-        if (!jwtTokenProvider.validateToken(refreshToken)) {
-            throw new RuntimeException("리프레시 토큰이 만료되었습니다. 다시 로그인하세요.");
-        }
-
-        // 2. DB에 저장된 토큰과 일치하는지 확인
-        String email = jwtTokenProvider.getUserEmail(refreshToken);
-        Users user = usersRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
-
-        if (!user.getRefreshToken().equals(refreshToken)) {
-            throw new RuntimeException("유효하지 않은 리프레시 토큰입니다.");
-        }
-
-        // 3. 새로운 Access Token 발행
-        return jwtTokenProvider.createAccessToken(user.getId(), user.getEmail() ,  user.getRole().name() , user.getNickname());
-    }
-
     @Override
     @Transactional
     public TokenResponseDTO refresh(String refreshToken) {
-        // 1. 토큰 유효성 검사 (JwtTokenProvider에 있는 메서드 활용)
         if (!jwtTokenProvider.validateToken(refreshToken)) {
             throw new RuntimeException("유효하지 않은 리프레시 토큰입니다.");
         }
 
-        // 2. 토큰에서 사용자 이메일 추출
-        String email = jwtTokenProvider.getUserEmail(refreshToken);
         Long userId = jwtTokenProvider.getUserId(refreshToken);
-
-        // 3. DB에서 사용자 조회
         Users user = usersRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
 
-        // 4. DB에 저장된 리프레시 토큰과 일치하는지 확인
         if (!refreshToken.equals(user.getRefreshToken())) {
-            // 일치하지 않으면 누군가 예전 토큰을 쓴 것이므로 보안을 위해 토큰을 무효화합니다.
             user.updateRefreshToken(null);
             throw new RuntimeException("로그인 정보가 일치하지 않습니다. 다시 로그인해주세요.");
         }
 
-        // 5. 절대 만료 시간(90일) 검증
         if (user.getInitialLoginAt() == null ||
                 user.getInitialLoginAt().plusDays(90).isBefore(LocalDateTime.now())) {
-            user.updateRefreshToken(null); // 세션 강제 종료
+            user.updateRefreshToken(null);
             throw new RuntimeException("보안 정책상 다시 로그인이 필요합니다. (절대 만료 기간 초과)");
         }
 
         boolean isRememberMe = jwtTokenProvider.getIsRememberMe(refreshToken);
-        // 5. 새로운 토큰 쌍 생성
         String newAccessToken = jwtTokenProvider.createAccessToken(user.getId(), user.getEmail(),  user.getRole().name() , user.getNickname());
         String newRefreshToken = jwtTokenProvider.createRefreshToken(user.getId(), user.getEmail() ,  user.getRole().name(), isRememberMe);
 
-        // 6. DB의 리프레시 토큰 업데이트 (Rotation 전략)
         user.updateRefreshToken(newRefreshToken);
 
         return new TokenResponseDTO(newAccessToken, newRefreshToken);
     }
 
-    // 비밀번호 재설정 인증코드 생성 로직
+    @Override
     @Transactional
     public void sendResetCode(String email) throws MessagingException {
-        // 1. 유저 확인 (Repository 사용)
         usersRepository.findByEmailAndProvider(email , AuthProvider.EMAIL)
                 .orElseThrow(() -> new RuntimeException("가입되지 않은 이메일입니다."));
 
-        // 2. 인증 코드 생성
         SecureRandom secureRandom = new SecureRandom();
         int number = secureRandom.nextInt(1000000);
         String code = String.format("%06d", number);
@@ -147,19 +117,17 @@ public class AuthServiceImpl implements AuthService{
         String redisKey = "PWD_CODE:" + email;
         redisTemplate.opsForValue().set(redisKey, code, Duration.ofMinutes(5));
 
-        // 4. 메일 발송 의뢰
         try {
             mailService.sendVerificationCode(email, code);
             log.info("비밀번호 재설정 메일 발송 요청 성공: email={}, code={}", email, code);
         } catch (MessagingException e) {
             log.error("메일 발송 중 오류 발생: {}", e.getMessage());
-            // 메일 발송 실패 시 Redis에 저장된 코드 삭제 (선택 사항)
             redisTemplate.delete(redisKey);
             throw e;
         }
     }
 
-    // 비밀번호 재설정 인증코드 대조 로직
+    @Override
     public String verifyResetCode(String email, String code) {
         String savedCode = redisTemplate.opsForValue().get("PWD_CODE:" + email);
 
@@ -167,61 +135,45 @@ public class AuthServiceImpl implements AuthService{
             throw new RuntimeException("인증 코드가 일치하지 않거나 만료되었습니다.");
         }
 
-        // 인증 성공 시, 다음 단계(비밀번호 변경)를 위한 임시 토큰 발행
         String resetToken = UUID.randomUUID().toString();
         redisTemplate.opsForValue().set("RESET_TOKEN:" + resetToken, email, Duration.ofMinutes(3));
 
         return resetToken;
     }
 
+    @Override
     @Transactional
     public void resetPassword(String resetToken, String newPassword) {
-        // 1. 임시 토큰으로 이메일 추출
         String email = redisTemplate.opsForValue().get("RESET_TOKEN:" + resetToken);
         if (email == null) {
             throw new RuntimeException("유효하지 않은 접근입니다.");
         }
 
-        // 2. 실제 비밀번호 변경
         Users user = usersRepository.findByEmailAndProvider(email , AuthProvider.EMAIL)
                 .orElseThrow(() -> new RuntimeException("가입되지 않은 이메일입니다."));
         user.updatePassword(passwordEncoder.encode(newPassword));
 
-        // 3. 사용 완료된 토큰 삭제
         redisTemplate.delete("RESET_TOKEN:" + resetToken);
     }
 
+    @Override
     @Transactional
     public TokenResponseDTO loginAsGuest() {
-        // 1. 고유한 식별자 생성 (중복 방지용 8자리)
         String uuid = UUID.randomUUID().toString().substring(0, 8);
-
-        // 2. 임시 유저 생성 (엔티티 제약조건 충족)
         Users guestUser = Users.builder()
-                .email("guest_" + uuid + "@aiq.com") // 중복되지 않는 가짜 이메일
+                .email("guest_" + uuid + "@aiq.com")
                 .nickname("게스트_" + uuid)
                 .provider(AuthProvider.GUEST)
-                .currentCredits(20L)
+                .currentCredits(0L)
                 .build();
-
         usersRepository.save(guestUser);
 
-        // 3. 토큰 생성 (기존 JwtTokenProvider 활용)
         String accessToken = jwtTokenProvider.createAccessToken(
-                guestUser.getId(),
-                guestUser.getEmail(),
-                UserRole.ROLE_GUEST.name(),
-                guestUser.getNickname()
+                guestUser.getId(), guestUser.getEmail(), UserRole.ROLE_GUEST.name(), guestUser.getNickname()
         );
-
         String refreshToken = jwtTokenProvider.createRefreshToken(
-                guestUser.getId(),
-                guestUser.getEmail(),
-                UserRole.ROLE_GUEST.name(),
-                false
+                guestUser.getId(), guestUser.getEmail(), UserRole.ROLE_GUEST.name(), false
         );
-
-        // DB에 리프레시 토큰 업데이트
         guestUser.updateRefreshToken(refreshToken);
 
         return new TokenResponseDTO(accessToken, refreshToken);
@@ -232,35 +184,25 @@ public class AuthServiceImpl implements AuthService{
     public void withdrawUser(Long userId) {
         Users user = usersRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
-
-        // Users 엔티티에 정의된 탈퇴 메소드 호출
-        log.info("회원 정보 : "+user);
         user.withdraw();
-
-        // 변경된 상태 저장
         usersRepository.save(user);
-
         log.info("회원 탈퇴 처리 완료: userId={}", userId);
     }
 
     @Override
     @Transactional
     public void changePassword(Long userId, ChangePasswordRequestDTO request) {
-        // 1. 사용자 조회
         Users user = usersRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
 
-        // 2. 현재 비밀번호 확인
         if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
             throw new RuntimeException("현재 비밀번호가 일치하지 않습니다.");
         }
 
-        // 3. 새 비밀번호와 현재 비밀번호가 같은지 확인
         if (request.getCurrentPassword().equals(request.getNewPassword())) {
             throw new RuntimeException("새로운 비밀번호는 현재 비밀번호와 달라야 합니다.");
         }
 
-        // 4. 새 비밀번호 암호화 및 업데이트
         user.updatePassword(passwordEncoder.encode(request.getNewPassword()));
         usersRepository.save(user);
 

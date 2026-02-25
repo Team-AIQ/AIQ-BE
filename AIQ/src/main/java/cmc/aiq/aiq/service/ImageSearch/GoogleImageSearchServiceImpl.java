@@ -29,11 +29,13 @@ public class GoogleImageSearchServiceImpl implements GoogleImageSearchService {
 
     @Override
     public String getProductImageUrl(String productName) {
+        // UriComponentsBuilder를 사용하여 URL을 안전하게 구성하고 인코딩합니다.
         String url = UriComponentsBuilder.fromHttpUrl("https://openapi.naver.com/v1/search/shop.json")
                 .queryParam("query", productName)
-                .queryParam("display", 1) // 가장 정확한 결과 1개만 받음
-                .queryParam("sort", "sim") // 정확도순으로 정렬
-                .build(true) // <-- 이 부분이 URL 인코딩을 처리합니다.
+                .queryParam("display", 1)
+                .queryParam("sort", "sim")
+                .build() // 먼저 구조를 만들고
+                .encode() // 그 다음 인코딩을 명시적으로 수행
                 .toUriString();
 
         try {
