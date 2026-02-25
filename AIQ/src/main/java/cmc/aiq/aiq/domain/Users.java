@@ -94,12 +94,16 @@ public class Users {
         }
     }
 
-    /**
-     * 회원 탈퇴 처리를 위한 메소드 (Soft Delete)
-     */
+    public void deductCredits(Long amount) {
+        if (this.currentCredits < amount) {
+            throw new IllegalStateException("크레딧이 부족합니다.");
+        }
+        this.currentCredits -= amount;
+    }
+
     public void withdraw() {
         this.deletedAt = LocalDateTime.now();
-        this.email = "deleted_user_" + this.id + "@deleted.com"; // 이메일 비식별화
+        this.email = "deleted_user_" + this.id + "@deleted.com";
         this.nickname = "탈퇴한 사용자";
         this.password = null;
         this.refreshToken = null;

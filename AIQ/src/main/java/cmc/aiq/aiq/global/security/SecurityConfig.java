@@ -51,6 +51,7 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> auth
                         // 인증이 필요한 API들을 명시적으로 선언
+                        .requestMatchers(HttpMethod.POST, "/api/credits/**").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/users/me").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/api/auth/withdraw").authenticated()
                         .requestMatchers(HttpMethod.PATCH, "/api/auth/password/change").authenticated()

@@ -1,11 +1,13 @@
 package cmc.aiq.aiq.service.Curation;
 
 import cmc.aiq.aiq.domain.*;
+import cmc.aiq.aiq.domain.ENUM.CreditTransactionType;
 import cmc.aiq.aiq.domain.ENUM.ResponseType;
 import cmc.aiq.aiq.dto.FinalReport.FinalReportResponse;
 import cmc.aiq.aiq.dto.History.HistoryResponseDTO;
 import cmc.aiq.aiq.dto.Quration.*;
 import cmc.aiq.aiq.repository.*;
+import cmc.aiq.aiq.service.Credit.CreditService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -29,20 +31,24 @@ public class CurationServiceImpl implements CurationService{
     private final CategoryAttributesRepository categoryRepository;
     private final AiResponseRepository aiResponseRepository;
     private final EmbeddingModel embeddingModel;
-    private final CurationAgent curationAgent;   // 이제 정상 작동하는 AI 비서
+    private final CurationAgent curationAgent;
     private final UsersRepository usersRepository;
     private final ObjectMapper objectMapper;
     private final CurationSessionsRepository curationSessionsRepository;
+    private final CreditService creditService; // CreditService 주입
 
     private static final double MATCH_THRESHOLD = 0.43;
-
 
     @Override
     @Transactional
     public CurationResponseDTO initiateCuration(CurationRequestDTO request) {
-        log.info("1. 사용자 질문 수신 및 저장: {}", request.getQuestion());
+        log.info("1. 사용자 질문 수신: {}", request.getQuestion());
         Users user = usersRepository.findById(request.getUserId())
                 .orElseThrow(() -> new RuntimeException("유저를 찾을 수 없습니다."));
+
+        // [추가] 크레딧 차감 로직
+        creditService.useCredit(user.getId(), CreditTransactionType.REPORT_GENERATION);
+        log.info("크레딧 차감 시도: userId={}, type={}", user.getId(), CreditTransactionType.REPORT_GENERATION.name());
 
         Queries query = queriesRepository.save(Queries.builder()
                         .user(user)
@@ -71,7 +77,6 @@ public class CurationServiceImpl implements CurationService{
         } else {
             log.info(">>>> [유사도 분석 결과] DB에 비교할 카테고리가 전혀 없습니다.");
         }
-        // --- 유사도 거리 확인 로그 끝 ---
 
         List<CategoryAttributesDTO> curationQuestions;
         String message;
@@ -101,22 +106,16 @@ public class CurationServiceImpl implements CurationService{
 
             if (existingCategory.isPresent()) {
                 var category = existingCategory.get();
-
                 List<CategoryAttributesDTO> storedAttributes = category.attributes();
-
                 CurationResult refined = curationAgent.refineExisting(request.getQuestion(), storedAttributes);
-
                 curationQuestions = refined.getQuestions();
                 message = String.format("[%s] 카테고리로 안내해 드릴게요.", category.displayName());
-
                 log.info("유사도는 낮았지만 기존 카테고리({}) 명칭이 일치하여 재사용합니다.", categoryName);
             } else {
                 curationQuestions = analysis.getQuestions();
                 message = "새로운 쇼핑 분야를 발견하여 맞춤 질문을 구성했습니다.";
-
                 String textToEmbed = analysis.getDisplayName() + " " + analysis.getDescription();
                 float[] newCategoryVector = embeddingModel.embed(textToEmbed).content().vector();
-
                 try {
                     categoryRepository.insertCategoryWithVector(
                             analysis.getCategoryName(),
@@ -134,19 +133,18 @@ public class CurationServiceImpl implements CurationService{
         log.info("[3] 큐레이션 질문 생성 완료. QueryID: {}", query.getId());
         return new CurationResponseDTO(query.getId(), categoryName, curationQuestions, message);
     }
+    
     private void saveInitialSession(Users user, Queries query, List<CategoryAttributesDTO> questions , String categoryName) {
         log.info("CurationSession 초기 상태 저장 시작");
 
         CategoryAttributes category = categoryRepository.findByCategoryName(categoryName)
                 .orElseThrow(() -> new RuntimeException("카테고리를 찾을 수 없습니다."));
 
-        // CategoryAttributesDTO -> CurationUserAnswerDTO 변환
-        // 지성님의 DTO 구조(display_label, question_text, selected_answer)에 맞게 매핑합니다.
         List<CurationUserAnswerDTO> sessionResults = questions.stream()
                 .map(q -> new CurationUserAnswerDTO(
                         q.getDisplayLabel(),
                         q.getQuestionText(),
-                        q.getUserAnswer() // AI가 추출한 대답을 selected_answer로 저장
+                        q.getUserAnswer()
                 ))
                 .toList();
 
@@ -172,13 +170,12 @@ public class CurationServiceImpl implements CurationService{
         log.info("업데이트 후 결과: {}", session.getCurationResults());
         curationSessionsRepository.save(session);
 
-
         log.info("QueryID {}에 대한 사용자 답변 저장 완료", request.getQueryId());
     }
+    
     @Transactional
     @Override
     public List<HistoryResponseDTO> getUserHistory(Long userId) {
-        // ⭐️ 이메일로 유저 찾기(userRepository.findByEmail) 과정이 생략됨!
         return queriesRepository.findAllByUserIdOrderByCreatedAtDesc(userId)
                 .stream()
                 .map(q -> new HistoryResponseDTO(
@@ -188,10 +185,10 @@ public class CurationServiceImpl implements CurationService{
                 ))
                 .collect(Collectors.toList());
     }
+    
     @Transactional
     @Override
     public FinalReportResponse getFinalReportOnly(Long userId, Long queryId) {
-        // 1. 해당 질문이 존재하는지 + 요청한 유저의 것인지 확인
         Queries query = queriesRepository.findById(queryId)
                 .orElseThrow(() -> new RuntimeException("해당 기록을 찾을 수 없습니다."));
 
@@ -199,11 +196,9 @@ public class CurationServiceImpl implements CurationService{
             throw new AccessDeniedException("본인의 보고서만 열람할 수 있습니다.");
         }
 
-        // 2. 최종 보고서 데이터만 가져오기
         AiResponse reportResponse = aiResponseRepository.findByQueriesIdAndResponseType(queryId, ResponseType.FINAL_REPORT)
                 .orElseThrow(() -> new RuntimeException("최종 보고서가 생성되지 않은 질문입니다."));
 
-        // 3. String(JSON)을 다시 객체(FinalReportResponse)로 변환
         try {
             return objectMapper.readValue(reportResponse.getContent(), FinalReportResponse.class);
         } catch (JsonProcessingException e) {

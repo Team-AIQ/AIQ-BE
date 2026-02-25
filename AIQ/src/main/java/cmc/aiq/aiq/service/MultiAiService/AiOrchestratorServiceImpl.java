@@ -2,6 +2,7 @@ package cmc.aiq.aiq.service.MultiAiService;
 
 import cmc.aiq.aiq.domain.AiResponse;
 import cmc.aiq.aiq.domain.CurationSessions;
+import cmc.aiq.aiq.domain.ENUM.CreditTransactionType;
 import cmc.aiq.aiq.domain.ENUM.ResponseType;
 import cmc.aiq.aiq.domain.Models;
 import cmc.aiq.aiq.domain.Queries;
@@ -12,24 +13,20 @@ import cmc.aiq.aiq.repository.AiResponseRepository;
 import cmc.aiq.aiq.repository.CurationSessionsRepository;
 import cmc.aiq.aiq.repository.ModelsRepository;
 import cmc.aiq.aiq.repository.QueriesRepository;
+import cmc.aiq.aiq.service.Credit.CreditService;
 import cmc.aiq.aiq.service.ImageSearch.ReportEnrichmentService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.model.chat.ChatLanguageModel;
-import dev.langchain4j.model.input.Prompt;
-import dev.langchain4j.model.input.PromptTemplate;
-import dev.langchain4j.model.output.Response;
-import dev.langchain4j.model.output.TokenUsage;
 import dev.langchain4j.service.AiServices;
 import dev.langchain4j.service.Result;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.task.DelegatingSecurityContextAsyncTaskExecutor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.ArrayList;
@@ -47,7 +44,7 @@ public class AiOrchestratorServiceImpl implements AiOrchestratorService {
     private final ChatLanguageModel geminiModel;
     private final ChatLanguageModel perplexityModel;
     private final ObjectMapper objectMapper;
-    private final ReportAgent reportAgent; // LangChain4j AiService
+    private final ReportAgent reportAgent;
 
     private final PromptManager promptManager;
     private final AiResponseRepository aiResponseRepository;
@@ -57,15 +54,15 @@ public class AiOrchestratorServiceImpl implements AiOrchestratorService {
 
     private final CurationTextBuilder curationTextBuilder;
     private final DelegatingSecurityContextAsyncTaskExecutor taskExecutor;
-
     private final ReportEnrichmentService reportEnrichmentService;
-
+    private final CreditService creditService;
 
     @Override
     @Transactional
     public void executeParallelAi(Long queryId, List<String> selectedModels, SseEmitter emitter) {
         SecurityContext mainContext = SecurityContextHolder.getContext();
-        // 1. 기초 데이터 로드
+        
+        // [삭제] 크레딧 차감 로직 및 관련 try-catch 제거
         Queries queries = queriesRepository.findById(queryId)
                 .orElseThrow(() -> new RuntimeException("질문 정보를 찾을 수 없습니다."));
         String userQuestion = queries.getQuestion();
@@ -73,27 +70,19 @@ public class AiOrchestratorServiceImpl implements AiOrchestratorService {
         CurationSessions session = curationSessionsRepository.findByQueryId(queryId)
                 .orElseThrow(() -> new RuntimeException("큐레이션 세션을 찾을 수 없습니다."));
 
-        // 2. 프롬프트 변수 준비 (기존 유지)
         String curationContext = curationTextBuilder.build(session);
         String categoryName = session.getCategoryAttributes().getDisplayName();
 
         Map<String, String> variables = Map.of(
                 "categoryName", categoryName,
                 "context", curationContext,
-                "question", queries.getQuestion()
+                "question", userQuestion
         );
 
-        // 3. 치환된 시스템 프롬프트 가져오기
         String systemPrompt = promptManager.getProcessedPrompt("AI_RECOMMEND_SYSTEM", variables);
 
-
-        // 5. [Scatter] 비동기 병렬 호출 시작 (반환 타입이 AiRecommendationResponse로 변경됨)
         List<CompletableFuture<AiRecommendationResponse>> futures = new ArrayList<>();
-
-        // 입력된 모델 리스트 정제 (공백 제거)
-        List<String> targets = selectedModels.stream()
-                .map(String::trim)
-                .collect(Collectors.toList());
+        List<String> targets = selectedModels.stream().map(String::trim).collect(Collectors.toList());
 
         if (targets.contains("GPT")) {
             futures.add(callAi(gptModel, "GPT", systemPrompt, userQuestion, queries, emitter, mainContext));
@@ -105,12 +94,10 @@ public class AiOrchestratorServiceImpl implements AiOrchestratorService {
             futures.add(callAi(perplexityModel, "Perplexity", systemPrompt, userQuestion, queries, emitter, mainContext));
         }
 
-        // 6. [Gather] 모든 응답 완료 후 최종 보고서 생성
         CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
                 .thenRunAsync(() -> {
                     SecurityContextHolder.setContext(mainContext);
                     try {
-                        // 1) 비동기 결과 취합 (join)
                         List<AiRecommendationResponse> responses = futures.stream()
                                 .map(CompletableFuture::join)
                                 .collect(Collectors.toList());
@@ -119,39 +106,25 @@ public class AiOrchestratorServiceImpl implements AiOrchestratorService {
                         log.info("모든 모델 응답 완료. 최종 보고서 생성 시작...");
 
                         String systemPromptTemplate = promptManager.getProcessedPrompt("REPORT_AGENT_SYSTEM", Map.of());
-//                        long reportStartTime = System.currentTimeMillis();
                         Result<FinalReportResponse> reportResult = reportAgent.generateReport(
-                                systemPromptTemplate, // DB에서 꺼낸 그 날카로운 프롬프트!
+                                systemPromptTemplate,
                                 userQuestion,
                                 curationContext,
                                 combinedText,
                                 categoryName
                         );
 
-//                        // 4) 저장 및 전송 (우리가 만든 제네릭 saveCompletion 사용)
-//                        AiResponse reportRecord = saveInitialPending(queries, "GPT", ResponseType.FINAL_REPORT);
-//                        saveCompletion(reportRecord.getId(), reportResult,reportResult.content(), reportStartTime);
-//
-//                        sendSse(emitter, "FINAL_REPORT", reportResult.content());
-//                        sendSse(emitter, "finish", "done");
-//                        emitter.complete();
                         FinalReportResponse rawReport = reportResult.content();
 
-                        // ⭐️ [추가] 실시간 구글 이미지 검색 및 리포트 보완
                         log.info("제품 이미지 검색 시작...");
                         FinalReportResponse enrichedReport = reportEnrichmentService
                                 .enrichReportWithImages(rawReport)
-                                .join(); // 검색 완료될 때까지 잠시 대기
+                                .join();
 
-                        // 3) 저장 (PostgreSQL의 AiResponse 테이블)
-                        // content 컬럼은 TEXT이므로 JSON 문자열로 변환하여 저장
                         long reportStartTime = System.currentTimeMillis();
                         AiResponse reportRecord = saveInitialPending(queries, "GPT", ResponseType.FINAL_REPORT);
-
-                        // saveCompletion 내부에서 enrichedReport를 JSON String으로 변환하여 content에 저장하도록 구현
                         saveCompletion(reportRecord.getId(), reportResult, enrichedReport, reportStartTime);
 
-                        // 4) SSE 전송 (이미지가 포함된 최종본)
                         sendSse(emitter, "FINAL_REPORT", enrichedReport);
                         sendSse(emitter, "finish", "done");
                         emitter.complete();
@@ -160,7 +133,7 @@ public class AiOrchestratorServiceImpl implements AiOrchestratorService {
                         log.error("최종 보고서 생성 중 에러", e);
                         sendSse(emitter, "ERROR", e.getMessage());
                         emitter.completeWithError(e);
-                    } finally{
+                    } finally {
                         SecurityContextHolder.clearContext();
                     }
                 }, taskExecutor);
@@ -170,7 +143,7 @@ public class AiOrchestratorServiceImpl implements AiOrchestratorService {
     @Transactional
     public CompletableFuture<AiRecommendationResponse> callAi(ChatLanguageModel model, String modelName, String systemPrompt,
                                                               String question, Queries queries, SseEmitter emitter, SecurityContext context) {
-        AiResponse record = saveInitialPending(queries, modelName,ResponseType.INDIVIDUAL);
+        AiResponse record = saveInitialPending(queries, modelName, ResponseType.INDIVIDUAL);
         final Long responseId = record.getId();
 
         return CompletableFuture.supplyAsync(() -> {
@@ -178,7 +151,6 @@ public class AiOrchestratorServiceImpl implements AiOrchestratorService {
             long startTime = System.currentTimeMillis();
             try {
                 RecommendationAgent agent = AiServices.create(RecommendationAgent.class, model);
-                // 1. Result 객체로 수신 (데이터 + 토큰 정보 포함)
                 Result<AiRecommendationResponse> result = agent.generate(systemPrompt, question);
                 AiRecommendationResponse aiOutput = result.content();
 
@@ -190,15 +162,14 @@ public class AiOrchestratorServiceImpl implements AiOrchestratorService {
                 );
 
                 sendSse(emitter, modelName + "_ANSWER", finalResponse);
-
-                saveCompletion(responseId, result,finalResponse, startTime);
+                saveCompletion(responseId, result, finalResponse, startTime);
 
                 return result.content();
             } catch (Exception e) {
                 log.error("{} 호출 에러: {}", modelName, e.getMessage());
                 updateToFailed(responseId, e.getMessage());
                 return null;
-            } finally{
+            } finally {
                 SecurityContextHolder.clearContext();
             }
         }, taskExecutor);
@@ -213,10 +184,9 @@ public class AiOrchestratorServiceImpl implements AiOrchestratorService {
     }
 
     @Override
-    public AiResponse saveInitialPending(Queries queries, String modelName , ResponseType type) {
+    public AiResponse saveInitialPending(Queries queries, String modelName, ResponseType type) {
         Models model = modelsRepository.findByName(modelName)
                 .orElseThrow(() -> new RuntimeException("모델 정보를 찾을 수 없습니다: " + modelName));
-        // 지성님의 AiResponse 엔티티 빌더를 사용하여 PENDING 상태로 저장
         AiResponse response = AiResponse.builder()
                 .queries(queries)
                 .model(model)
@@ -227,14 +197,12 @@ public class AiOrchestratorServiceImpl implements AiOrchestratorService {
 
     @Override
     @Transactional
-    public <T> void saveCompletion(Long recordId, Result<T> result,T content, long startTime) {
+    public <T> void saveCompletion(Long recordId, Result<T> result, T content, long startTime) {
         try {
             AiResponse record = aiResponseRepository.findByIdWithModel(recordId)
                     .orElseThrow(() -> new RuntimeException("저장할 레코드를 찾을 수 없습니다."));
 
             long latency = System.currentTimeMillis() - startTime;
-            log.info("지연 시간 계산됨: {} ms", latency); // ⭐️ 로그로 확인!
-            // 1. 메타데이터 구성 (지연 시간 + 토큰 정보)
             Map<String, Object> metadata = new HashMap<>();
             metadata.put("latency_ms", latency);
 
@@ -246,15 +214,8 @@ public class AiOrchestratorServiceImpl implements AiOrchestratorService {
                 ));
             }
 
-            // 2. 객체를 JSON 문자열로 직렬화 (content 필드용)
-            // objectMapper가 aiResponse가 어떤 객체든 알아서 JSON으로 구워줍니다.
             String jsonContent = objectMapper.writeValueAsString(content);
-
-            log.info("엔티티에 전달될 최종 메타데이터: {}", metadata);
-            // 3. 엔티티 비즈니스 로직 호출
             record.complete(jsonContent, metadata);
-
-            // 4. DB 반영
             aiResponseRepository.saveAndFlush(record);
             log.info("DB 저장 성공 - 모델: {}, 지연시간: {}ms", record.getModel().getName(), latency);
         } catch (JsonProcessingException e) {
@@ -272,13 +233,11 @@ public class AiOrchestratorServiceImpl implements AiOrchestratorService {
 
     private String formatResponsesForReport(List<AiRecommendationResponse> responses) {
         StringBuilder sb = new StringBuilder();
-
         for (AiRecommendationResponse response : responses) {
             if (response != null) {
                 appendModelOutput(sb, response.modelName(), response);
             }
         }
-
         return sb.toString();
     }
 
