@@ -11,7 +11,7 @@ public record FinalReportResponse(
         @Description("모델별로 의견이 갈린 지점을 '성능 vs 가격'과 같은 현실적인 선택의 기로로 묘사한 내용입니다.")
         String decisionBranches,
 
-        @Description("AIQ가 TOP 3 제품을 종합적으로 분석하여, 왜 이 조합을 추천하는지에 대한 핵심적인 이유입니다.")
+        @Description("AIQ가 TOP1 제품을 종합적으로 분석하여, 왜 이 조합을 추천하는지에 대한 핵심적인 이유입니다.")
         String aiqRecommendationReason, // <-- 새로운 필드 추가
 
         @Description("최종 추천 TOP 3 제품 리스트입니다.")
