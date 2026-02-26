@@ -1,6 +1,5 @@
 package cmc.aiq.aiq.controller;
 
-import cmc.aiq.aiq.domain.Users;
 import cmc.aiq.aiq.dto.ApiResponse;
 import cmc.aiq.aiq.dto.ChangePasswordRequestDTO;
 import cmc.aiq.aiq.dto.LoginRequestDTO;
@@ -32,7 +31,6 @@ public class AuthController {
     @Operation(summary = "회원가입")
     public ResponseEntity<ApiResponse<Void>> signUp(@RequestBody SignUpRequestDTO request) {
         authService.signUp(request);
-        // 새로운 자원이 생성되었으므로 201 Created 사용
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(HttpStatus.CREATED, "회원가입 성공", null));
     }
@@ -58,15 +56,15 @@ public class AuthController {
         mailService.sendMagicLink(email , origin);
         return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK, "인증 이메일이 발송되었습니다.", null));
     }
+
     @PostMapping("/guest")
     public ResponseEntity<ApiResponse<TokenResponseDTO>> guestLogin() {
         return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK, "비회원 로그인 성공", authService.loginAsGuest()));
     }
 
-    // 추후 메서드를 만들어서 로직 분리 예정
     @GetMapping("/verify-link")
     @Operation(summary = "매직링크 검증")
-    public ResponseEntity<ApiResponse<String>> verifyMagicLink(@RequestParam String token) {
+    public ResponseEntity<Void> verifyMagicLink(@RequestParam String token) {
         String verificationData = mailService.verifyToken(token);
 
         if (verificationData != null) {
@@ -76,20 +74,17 @@ public class AuthController {
 
             String redirectUrl;
             if ("app".equalsIgnoreCase(origin)) {
-                // 앱: 설정해둔 커스텀 스킴(aiq://)을 통한 딥링크 리다이렉트
-                redirectUrl = "http://192.168.219.101:8080://signup-success?email=" + email;
+                redirectUrl = "aiq://signup-success?email=" + email; // 실제 앱 커스텀 스킴으로 수정
             } else {
-                // 웹: Next.js의 가입 완료 혹은 추가 정보 입력 페이지
-                redirectUrl = "http://localhost:3000/signup?verified=1&email=" + email;
+                redirectUrl = "https://www.aiq.ai.kr/signup?verified=1&email=" + email;
             }
 
-            return ResponseEntity.status(HttpStatus.FOUND) // 302 Redirect
+            return ResponseEntity.status(HttpStatus.FOUND)
                     .location(URI.create(redirectUrl))
                     .build();
         } else {
-            // 인증 실패 시 에러 안내 페이지(웹)로 이동시키거나 에러용 딥링크 발송
             return ResponseEntity.status(HttpStatus.FOUND)
-                    .location(URI.create("http://localhost:3000/auth/error?reason=expired"))
+                    .location(URI.create("https://www.aiq.ai.kr/auth/error?reason=expired"))
                     .build();
         }
     }
@@ -112,20 +107,18 @@ public class AuthController {
     @Operation(summary = "비밀번호 재설정")
     public ResponseEntity<ApiResponse<Void>> resetPassword(@RequestParam String resetToken, @RequestParam String newPassword) {
         authService.resetPassword(resetToken, newPassword);
-        // 수정 완료 후 200 OK 또는 204 No Content
         return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK, "비밀번호 재설정 완료", null));
     }
 
     @DeleteMapping("/withdraw")
     @Operation(summary = "회원 탈퇴", description = "현재 로그인된 사용자의 계정을 탈퇴 처리합니다.")
     public ResponseEntity<ApiResponse<Void>> withdraw(@AuthenticationPrincipal CustomUserDetails userDetails) {
-        log.info("회원 탈퇴 처리 로직 실행 ");
         authService.withdrawUser(userDetails.getUserId());
         return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK, "회원 탈퇴가 성공적으로 처리되었습니다.", null));
     }
 
     @PatchMapping("/password/change")
-    @Operation(summary = "마이프로필에서 비밀번호 변경", description = "현재 로그인된 사용자가 자신의 비밀번호를 변경합니다.")
+    @Operation(summary = "로그인 후 비밀번호 변경", description = "현재 로그인된 사용자가 자신의 비밀번호를 변경합니다.")
     public ResponseEntity<ApiResponse<Void>> changePassword(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @RequestBody ChangePasswordRequestDTO request
