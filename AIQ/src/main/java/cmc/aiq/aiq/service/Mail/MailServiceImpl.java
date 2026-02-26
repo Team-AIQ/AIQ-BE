@@ -24,14 +24,12 @@ public class MailServiceImpl implements MailService {
     private final StringRedisTemplate redisTemplate;
     private final UsersRepository usersRepository;
 
-    // [수정] 로고 URL을 localhost 테스트용 주소로 변경
-    private final String LOGO_URL = "https://www.aiq.ai.kr/logo.png";
+    // [수정] 로고 URL을 S3 운영 주소로 변경 (배포용)
+    private final String LOGO_URL = "https://api.aiq.ai.kr/logo.png";
 
     @Async
-    // 이메일 인증 메일 발송
     @Override
     public void sendMagicLink(String email , String origin) throws MessagingException {
-
         if(usersRepository.existsByEmailAndProvider(email, AuthProvider.EMAIL)){
             throw new RuntimeException("이미 가입된 이메일입니다. 로그인 혹은 비밀번호 찾기를 이용해주세요.");
         }
@@ -40,7 +38,8 @@ public class MailServiceImpl implements MailService {
         String redisValue = email + ":" + origin;
         redisTemplate.opsForValue().set(token, redisValue, Duration.ofMinutes(5));
 
-        String verificationLink = "https://www.aiq.ai.kr/api/auth/verify-link?token=" + token;
+        // [수정] 백엔드 도메인 변경
+        String verificationLink = "https://api.aiq.ai.kr/api/auth/verify-link?token=" + token;
 
         MimeMessage message = mailSender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
@@ -122,16 +121,12 @@ public class MailServiceImpl implements MailService {
                 "    </div>\n" +
                 "</div>";
     }
+
     @Override
     public String verifyToken(String token) {
-        // Redis에서 토큰으로 이메일 조회
         String redisValue = redisTemplate.opsForValue().get(token);
-
         if (redisValue != null) {
-            // 2. 인증 성공 시 토큰 삭제 (1회용 보안)
             redisTemplate.delete(token);
-
-            // 3. 결합된 문자열 그대로 반환
             return redisValue;
         }
         return null;

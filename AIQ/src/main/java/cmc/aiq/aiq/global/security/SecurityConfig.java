@@ -81,7 +81,7 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
 
         // 운영 및 로컬 프론트엔드 주소 허용
-        configuration.setAllowedOrigins(Arrays.asList("https://www.aiq.ai.kr", "http://localhost:3000"));
+        configuration.setAllowedOrigins(Arrays.asList("https://aiq.ai.kr","https://www.aiq.ai.kr", "http://localhost:3000"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);
