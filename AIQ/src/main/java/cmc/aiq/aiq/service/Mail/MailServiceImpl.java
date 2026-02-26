@@ -25,7 +25,7 @@ public class MailServiceImpl implements MailService {
     private final UsersRepository usersRepository;
 
     // [수정] 로고 URL을 localhost 테스트용 주소로 변경
-    private final String LOGO_URL = "http://localhost:8080/logo.png";
+    private final String LOGO_URL = "https://www.aiq.ai.kr/logo.png";
 
     @Async
     // 이메일 인증 메일 발송
