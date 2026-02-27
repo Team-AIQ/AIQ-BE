@@ -45,7 +45,7 @@ public class AuthServiceImpl implements AuthService{
                 .password(passwordEncoder.encode(request.getPassword()))
                 .nickname(request.getNickname())
                 .provider(AuthProvider.EMAIL)
-                .currentCredits(50L)
+                .currentCredits(20L)
                 .build();
         usersRepository.save(user);
     }
