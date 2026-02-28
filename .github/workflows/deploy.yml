@@ -48,11 +48,12 @@ jobs:
           username: root
           password: ${{ secrets.SSH_PASSWORD }}
           script: |
-            # 1. 기존 컨테이너 중지 및 삭제
+            # 1. 이름이 aiq-backend인 컨테이너와 8080포트를 쓰는 컨테이너 모두 중지 및 삭제
             docker stop aiq-backend || true
-            docker rm aiq-backend || true
+            docker rm -f aiq-backend || true
+            docker rm -f $(docker ps -aq --filter "publish=8080") || true
             
-            # 2. 최신 이미지 강제 다운로드
+            # 2. 최신 이미지 가져오기
             docker pull ${{ secrets.DOCKER_USERNAME }}/aiq-backend:latest
             
             # 3. 새 컨테이너 실행
