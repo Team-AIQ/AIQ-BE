@@ -48,19 +48,34 @@ jobs:
           username: root
           password: ${{ secrets.SSH_PASSWORD }}
           script: |
-            # 1. 이름이 aiq-backend인 컨테이너와 8080포트를 쓰는 컨테이너 모두 중지 및 삭제
+            # 1. 기존 컨테이너 정리
             docker stop aiq-backend || true
             docker rm -f aiq-backend || true
             docker rm -f $(docker ps -aq --filter "publish=8080") || true
             
-            # 2. 최신 이미지 가져오기
+            # 2. 최신 이미지 다운로드
             docker pull ${{ secrets.DOCKER_USERNAME }}/aiq-backend:latest
             
-            # 3. 새 컨테이너 실행
+            # 3. 새 컨테이너 실행 (모든 Secrets 주입)
             docker run -d --name aiq-backend \
               -p 8080:8080 \
               --network aiq-network \
-              -e SPRING_DATASOURCE_PASSWORD='${{ secrets.DB_PASSWORD }}' \
+              -e SPRING_DATASOURCE_URL='${{ secrets.SPRING_DATASOURCE_URL }}' \
+              -e SPRING_DATASOURCE_USERNAME='${{ secrets.SPRING_DATASOURCE_USERNAME }}' \
+              -e SPRING_DATASOURCE_PASSWORD='${{ secrets.SPRING_DATASOURCE_PASSWORD }}' \
               -e SPRING_DATA_REDIS_HOST=aiq-redis \
+              -e NAVER_CLIENT_ID='${{ secrets.NAVER_CLIENT_ID }}' \
+              -e NAVER_CLIENT_SECRET='${{ secrets.NAVER_CLIENT_SECRET }}' \
+              -e GOOGLE_API_KEY='${{ secrets.GOOGLE_API_KEY }}' \
+              -e OPENAI_API_KEY='${{ secrets.OPENAI_API_KEY }}' \
+              -e PERPLEXITY_API_KEY='${{ secrets.PERPLEXITY_API_KEY }}' \
+              -e SERPER_API_KEY='${{ secrets.SERPER_API_KEY }}' \
+              -e OAUTH_GOOGLE_CLIENT_ID='${{ secrets.OAUTH_GOOGLE_CLIENT_ID }}' \
+              -e OAUTH_GOOGLE_CLIENT_SECRET='${{ secrets.OAUTH_GOOGLE_CLIENT_SECRET }}' \
+              -e OAUTH_KAKAO_CLIENT_ID='${{ secrets.OAUTH_KAKAO_CLIENT_ID }}' \
+              -e OAUTH_KAKAO_CLIENT_SECRET='${{ secrets.OAUTH_KAKAO_CLIENT_SECRET }}' \
+              -e OAUTH_NAVER_CLIENT_ID='${{ secrets.OAUTH_NAVER_CLIENT_ID }}' \
+              -e OAUTH_NAVER_CLIENT_SECRET='${{ secrets.OAUTH_NAVER_CLIENT_SECRET }}' \
+              -e SMTP_PASSWORD='${{ secrets.SMTP_PASSWORD }}' \
               -e SERVER_FORWARD_HEADERS_STRATEGY=native \
               ${{ secrets.DOCKER_USERNAME }}/aiq-backend:latest
