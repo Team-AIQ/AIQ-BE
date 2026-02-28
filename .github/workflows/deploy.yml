@@ -46,7 +46,7 @@ jobs:
         with:
           host: ${{ secrets.SERVER_IP }}
           username: root
-          key: ${{ secrets.SSH_PASSWORD }}
+          password: ${{ secrets.SSH_PASSWORD }}
           script: |
             # 1. 기존 컨테이너 중지 및 삭제
             docker stop aiq-backend || true
