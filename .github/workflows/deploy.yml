@@ -31,9 +31,11 @@ jobs:
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v5
         with:
-          context: .
+          # context를 ./AIQ로 바꿔서 도커가 AIQ 폴더 안을 보게 합니다.
+          context: ./AIQ
+          # file 경로를 명확하게 지정해줍니다.
+          file: ./AIQ/Dockerfile
           push: true
-          # 유성님 도커 허브 ID/이미지이름:버전
           tags: ${{ secrets.DOCKER_USERNAME }}/aiq-backend:latest
 
   deploy:
