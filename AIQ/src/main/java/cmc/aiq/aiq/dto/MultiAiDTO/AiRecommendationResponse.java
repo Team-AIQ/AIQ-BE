@@ -12,9 +12,6 @@ public record AiRecommendationResponse(
         List<ProductRecommendation> recommendations,
 
         @Description("해당 카테고리 제품 구매 시 고려해야 할 상세 스펙 가이드")
-        String specGuide,
-
-        @Description("실패 확률을 0%로 만드는 마지막 한마디")
-        String finalWord
+        String specGuide
 ) {}
 
