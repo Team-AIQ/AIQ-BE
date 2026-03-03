@@ -74,7 +74,7 @@ public class AuthController {
 
             String redirectUrl;
             if ("app".equalsIgnoreCase(origin)) {
-                redirectUrl = "aiq://signup-success?email=" + email; // 실제 앱 커스텀 스킴으로 수정
+                redirectUrl = "aiq://signup-success?email=" + email;
             } else {
                 redirectUrl = "https://www.aiq.ai.kr/signup?verified=1&email=" + email;
             }

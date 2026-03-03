@@ -31,23 +31,20 @@ public class CurationController {
     @PostMapping("/start")
     @Operation(summary = "큐레이션 시작", description = "사용자 질문을 분석하여 맞춤형 질문 리스트를 반환합니다.")
     public ResponseEntity<ApiResponse<CurationResponseDTO>> startCuration(@RequestBody CurationRequestDTO request) {
-        // ... (기존 코드는 동일)
-        return null; // This is a placeholder, the actual logic is in the original file
+        return null;
     }
 
     @PostMapping("/submit")
     @Operation(summary = "큐레이션 답변 제출", description = "사용자가 선택한 답변들을 세션에 저장합니다.")
     public ResponseEntity<ApiResponse<Void>> submitAnswers(@RequestBody CurationSubmitRequestDTO request) throws JsonProcessingException {
-        // ... (기존 코드는 동일)
-        return null; // This is a placeholder, the actual logic is in the original file
+        return null;
     }
 
     @GetMapping("/history")
     public ResponseEntity<ApiResponse<List<HistoryResponseDTO>>> getMyHistory(
             @AuthenticationPrincipal CustomUserDetails user
     ) {
-        // ... (기존 코드는 동일)
-        return null; // This is a placeholder, the actual logic is in the original file
+        return null;
     }
 
     @GetMapping("/history/{queryId}/report")

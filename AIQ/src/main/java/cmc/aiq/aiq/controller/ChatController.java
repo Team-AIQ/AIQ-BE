@@ -38,8 +38,5 @@ public class ChatController {
         return ApiResponse.success(HttpStatus.OK, "AI 응답이 완료되었습니다.", response);
     }
 
-    /**
-     * 요청 데이터를 받기 위한 내부 DTO
-     */
     public record ChatRequest(String userQuestion) {}
 }
