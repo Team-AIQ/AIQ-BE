@@ -28,7 +28,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Log4j2
-public class CurationServiceImpl implements CurationService{
+public class CurationServiceImpl implements CurationService {
     private final QueriesRepository queriesRepository;
     private final CategoryAttributesRepository categoryRepository;
     private final AiResponseRepository aiResponseRepository;
@@ -44,11 +44,103 @@ public class CurationServiceImpl implements CurationService{
     @Override
     @Transactional
     public CurationResponseDTO initiateCuration(CurationRequestDTO request) {
-        // ... (기존 코드는 동일)
-        return null; // This is a placeholder, the actual logic is in the original file
+        log.info("1. 사용자 질문 수신: {}", request.getQuestion());
+        Users user = usersRepository.findById(request.getUserId())
+                .orElseThrow(() -> new RuntimeException("유저를 찾을 수 없습니다."));
+
+        creditService.useCredit(user.getId(), CreditTransactionType.REPORT_GENERATION);
+        log.info("크레딧 차감 시도: userId={}, type={}", user.getId(), CreditTransactionType.REPORT_GENERATION.name());
+
+        Queries query = queriesRepository.save(Queries.builder()
+                .user(user)
+                .question(request.getQuestion())
+                .build());
+
+        log.info("2. 질문 벡터화 및 카테고리 검색 시작");
+        float[] vector = embeddingModel.embed(request.getQuestion()).content().vector();
+
+        Optional<CategoryDistanceResult> closestCategory = categoryRepository.findClosestCategory(vector);
+
+        // ... (이하 기존 initiateCuration 로직은 그대로 유지)
+        List<CategoryAttributesDTO> curationQuestions;
+        String message;
+        String categoryName;
+
+        if (closestCategory.isPresent() && closestCategory.get().getDistance() <= MATCH_THRESHOLD) {
+            CategoryDistanceResult closest = closestCategory.get();
+            categoryName = closest.getCategoryName();
+            List<CategoryAttributesDTO> attributes;
+            try {
+                attributes = objectMapper.readValue(closest.getAttributes(), new TypeReference<>() {});
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException("카테고리 데이터 파싱 오류", e);
+            }
+            CurationResult result = curationAgent.refineExisting(request.getQuestion(), attributes);
+            curationQuestions = result.getQuestions();
+            message = String.format("[%s] 카테고리에 최적화된 질문입니다.", closest.getDisplayName());
+        } else {
+            AiCategoryAnalysisDTO analysis = curationAgent.createNewCategory(request.getQuestion());
+            categoryName = analysis.getCategoryName();
+            var existingCategory = categoryRepository.findSimpleByCategoryName(categoryName);
+            if (existingCategory.isPresent()) {
+                var category = existingCategory.get();
+                curationQuestions = curationAgent.refineExisting(request.getQuestion(), category.attributes()).getQuestions();
+                message = String.format("[%s] 카테고리로 안내해 드릴게요.", category.displayName());
+            } else {
+                curationQuestions = analysis.getQuestions();
+                message = "새로운 쇼핑 분야를 발견하여 맞춤 질문을 구성했습니다.";
+                String textToEmbed = analysis.getDisplayName() + " " + analysis.getDescription();
+                float[] newCategoryVector = embeddingModel.embed(textToEmbed).content().vector();
+                try {
+                    categoryRepository.insertCategoryWithVector(
+                            analysis.getCategoryName(),
+                            analysis.getDisplayName(),
+                            Arrays.toString(newCategoryVector),
+                            objectMapper.writeValueAsString(curationQuestions),
+                            true
+                    );
+                } catch (JsonProcessingException e) {
+                    throw new RuntimeException("카테고리 저장 중 데이터 변환 에러", e);
+                }
+            }
+        }
+        saveInitialSession(user, query, curationQuestions, categoryName);
+        log.info("[3] 큐레이션 질문 생성 완료. QueryID: {}", query.getId());
+        return new CurationResponseDTO(query.getId(), categoryName, curationQuestions, message);
     }
-    
-    // ... (saveInitialSession, saveUserAnswers, getUserHistory 메소드는 동일)
+
+    private void saveInitialSession(Users user, Queries query, List<CategoryAttributesDTO> questions, String categoryName) {
+        CategoryAttributes category = categoryRepository.findByCategoryName(categoryName)
+                .orElseThrow(() -> new RuntimeException("카테고리를 찾을 수 없습니다."));
+        List<CurationUserAnswerDTO> sessionResults = questions.stream()
+                .map(q -> new CurationUserAnswerDTO(q.getDisplayLabel(), q.getQuestionText(), q.getUserAnswer()))
+                .toList();
+        CurationSessions session = CurationSessions.builder()
+                .user(user)
+                .query(query)
+                .categoryAttributes(category)
+                .curationResults(sessionResults)
+                .build();
+        curationSessionsRepository.save(session);
+    }
+
+    @Override
+    public void saveUserAnswers(CurationSubmitRequestDTO request) {
+        CurationSessions session = curationSessionsRepository.findByQueryId(request.getQueryId())
+                .orElseThrow(() -> new RuntimeException("해당 질문에 대한 큐레이션 세션을 찾을 수 없습니다."));
+        session.updateResults(request.getAnswers());
+        curationSessionsRepository.save(session);
+        log.info("QueryID {}에 대한 사용자 답변 저장 완료", request.getQueryId());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<HistoryResponseDTO> getUserHistory(Long userId) {
+        return queriesRepository.findAllByUserIdOrderByCreatedAtDesc(userId)
+                .stream()
+                .map(q -> new HistoryResponseDTO(q.getId(), q.getQuestion(), q.getCreatedAt()))
+                .collect(Collectors.toList());
+    }
 
     @Override
     @Transactional(readOnly = true)
@@ -75,7 +167,6 @@ public class CurationServiceImpl implements CurationService{
                 }
             } catch (JsonProcessingException e) {
                 log.error("보고서 파싱 실패: reportId={}, message={}", response.getId(), e.getMessage());
-                // 파싱 실패는 무시하고 계속 진행
             }
         }
 

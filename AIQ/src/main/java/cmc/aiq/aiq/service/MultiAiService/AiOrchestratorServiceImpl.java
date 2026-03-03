@@ -166,8 +166,7 @@ public class AiOrchestratorServiceImpl implements AiOrchestratorService {
                 AiRecommendationResponse finalResponse = new AiRecommendationResponse(
                         modelName,
                         aiOutput.recommendations(),
-                        aiOutput.specGuide(),
-                        aiOutput.finalWord()
+                        aiOutput.specGuide()
                 );
 
                 sendSse(emitter, modelName + "_ANSWER", finalResponse);
