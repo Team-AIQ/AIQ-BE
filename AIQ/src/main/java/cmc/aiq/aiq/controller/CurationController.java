@@ -31,20 +31,37 @@ public class CurationController {
     @PostMapping("/start")
     @Operation(summary = "큐레이션 시작", description = "사용자 질문을 분석하여 맞춤형 질문 리스트를 반환합니다.")
     public ResponseEntity<ApiResponse<CurationResponseDTO>> startCuration(@RequestBody CurationRequestDTO request) {
-        return null;
+        try {
+            CurationResponseDTO data = curationService.initiateCuration(request);
+            return ResponseEntity.ok(
+                    ApiResponse.success(HttpStatus.OK, "큐레이션이 성공적으로 시작되었습니다.", data)
+            );
+        } catch (IllegalStateException e) {
+            log.warn("크레딧 부족으로 큐레이션 시작 실패: userId={}, message={}", request.getUserId(), e.getMessage());
+            return ResponseEntity.status(HttpStatus.PAYMENT_REQUIRED)
+                    .body(ApiResponse.failure(HttpStatus.PAYMENT_REQUIRED, e.getMessage()));
+        } catch (Exception e) {
+            log.error("큐레이션 시작 중 알 수 없는 오류 발생: userId={}", request.getUserId(), e);
+            return ResponseEntity.internalServerError()
+                    .body(ApiResponse.failure(HttpStatus.INTERNAL_SERVER_ERROR, "서버 내부 오류가 발생했습니다."));
+        }
     }
 
     @PostMapping("/submit")
     @Operation(summary = "큐레이션 답변 제출", description = "사용자가 선택한 답변들을 세션에 저장합니다.")
     public ResponseEntity<ApiResponse<Void>> submitAnswers(@RequestBody CurationSubmitRequestDTO request) throws JsonProcessingException {
-        return null;
+        log.info("파싱된 답변 데이터: {}", new ObjectMapper().writeValueAsString(request.getAnswers()));
+        curationService.saveUserAnswers(request);
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK, "사용자 답변이 성공적으로 저장되었습니다.", null));
     }
 
     @GetMapping("/history")
     public ResponseEntity<ApiResponse<List<HistoryResponseDTO>>> getMyHistory(
             @AuthenticationPrincipal CustomUserDetails user
     ) {
-        return null;
+        Long userId = user.getUserId();
+        List<HistoryResponseDTO> history = curationService.getUserHistory(userId);
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK, "히스토리 조회 성공", history));
     }
 
     @GetMapping("/history/{queryId}/report")
