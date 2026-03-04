@@ -1,10 +1,10 @@
 package cmc.aiq.aiq.controller;
 
 import cmc.aiq.aiq.dto.ApiResponse;
-import cmc.aiq.aiq.dto.FinalReport.FinalReportResponse;
 import cmc.aiq.aiq.dto.History.HistoryResponseDTO;
 import cmc.aiq.aiq.dto.Quration.CurationRequestDTO;
 import cmc.aiq.aiq.dto.Quration.CurationResponseDTO;
+import cmc.aiq.aiq.dto.Quration.CurationResultDetailDTO;
 import cmc.aiq.aiq.dto.Quration.CurationSubmitRequestDTO;
 import cmc.aiq.aiq.global.security.CustomUserDetails;
 import cmc.aiq.aiq.service.Curation.CurationService;
@@ -65,11 +65,11 @@ public class CurationController {
     }
 
     @GetMapping("/history/{queryId}/report")
-    public ResponseEntity<ApiResponse<FinalReportResponse>> getReport(
+    public ResponseEntity<ApiResponse<CurationResultDetailDTO>> getReport(
             @AuthenticationPrincipal CustomUserDetails user,
             @PathVariable Long queryId
     ) {
-        FinalReportResponse report = curationService.getFinalReportOnly(user.getUserId(), queryId);
-        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK, "최종 보고서 조회 성공", report));
+        CurationResultDetailDTO result = curationService.getCurationResultDetail(user.getUserId(), queryId);
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK, "큐레이션 상세 결과 조회 성공", result));
     }
 }

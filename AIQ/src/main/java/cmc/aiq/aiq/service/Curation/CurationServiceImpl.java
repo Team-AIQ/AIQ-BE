@@ -5,6 +5,7 @@ import cmc.aiq.aiq.domain.ENUM.CreditTransactionType;
 import cmc.aiq.aiq.domain.ENUM.ResponseType;
 import cmc.aiq.aiq.dto.FinalReport.FinalReportResponse;
 import cmc.aiq.aiq.dto.History.HistoryResponseDTO;
+import cmc.aiq.aiq.dto.MultiAiDTO.AiRecommendationResponse;
 import cmc.aiq.aiq.dto.Quration.*;
 import cmc.aiq.aiq.repository.*;
 import cmc.aiq.aiq.service.Credit.CreditService;
@@ -18,6 +19,7 @@ import lombok.extern.log4j.Log4j2;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -51,9 +53,9 @@ public class CurationServiceImpl implements CurationService{
         log.info("크레딧 차감 시도: userId={}, type={}", user.getId(), CreditTransactionType.REPORT_GENERATION.name());
 
         Queries query = queriesRepository.save(Queries.builder()
-                        .user(user)
-                        .question(request.getQuestion())
-                        .build());
+                .user(user)
+                .question(request.getQuestion())
+                .build());
 
         log.info("2. 질문 벡터화 및 카테고리 검색 시작");
         float[] vector = embeddingModel.embed(request.getQuestion()).content().vector();
@@ -133,7 +135,7 @@ public class CurationServiceImpl implements CurationService{
         log.info("[3] 큐레이션 질문 생성 완료. QueryID: {}", query.getId());
         return new CurationResponseDTO(query.getId(), categoryName, curationQuestions, message);
     }
-    
+
     private void saveInitialSession(Users user, Queries query, List<CategoryAttributesDTO> questions , String categoryName) {
         log.info("CurationSession 초기 상태 저장 시작");
 
@@ -172,7 +174,7 @@ public class CurationServiceImpl implements CurationService{
 
         log.info("QueryID {}에 대한 사용자 답변 저장 완료", request.getQueryId());
     }
-    
+
     @Transactional
     @Override
     public List<HistoryResponseDTO> getUserHistory(Long userId) {
@@ -185,25 +187,44 @@ public class CurationServiceImpl implements CurationService{
                 ))
                 .collect(Collectors.toList());
     }
-    
-    @Transactional
+
     @Override
-    public FinalReportResponse getFinalReportOnly(Long userId, Long queryId) {
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public CurationResultDetailDTO getCurationResultDetail(Long userId, Long queryId) {
         Queries query = queriesRepository.findById(queryId)
                 .orElseThrow(() -> new RuntimeException("해당 기록을 찾을 수 없습니다."));
 
         if (!query.getUser().getId().equals(userId)) {
-            throw new AccessDeniedException("본인의 보고서만 열람할 수 있습니다.");
+            throw new AccessDeniedException("본인의 기록만 열람할 수 있습니다.");
         }
 
-        AiResponse reportResponse = aiResponseRepository.findByQueriesIdAndResponseType(queryId, ResponseType.FINAL_REPORT)
-                .orElseThrow(() -> new RuntimeException("최종 보고서가 생성되지 않은 질문입니다."));
+        List<AiResponse> allResponses = aiResponseRepository.findAllByQueriesId(queryId);
 
-        try {
-            return objectMapper.readValue(reportResponse.getContent(), FinalReportResponse.class);
-        } catch (JsonProcessingException e) {
-            log.error("보고서 파싱 실패: {}", e.getMessage());
-            throw new RuntimeException("보고서 데이터를 읽는 중 오류가 발생했습니다.");
+        FinalReportResponse finalReport = null;
+        List<AiRecommendationResponse> individualReports = new ArrayList<>();
+
+        for (AiResponse response : allResponses) {
+            try {
+                if (response.getResponseType() == ResponseType.FINAL_REPORT) {
+                    finalReport = objectMapper.readValue(response.getContent(), FinalReportResponse.class);
+                } else if (response.getResponseType() == ResponseType.INDIVIDUAL) {
+                    AiRecommendationResponse individualReport = objectMapper.readValue(response.getContent(), AiRecommendationResponse.class);
+                    individualReports.add(individualReport);
+                }
+            } catch (JsonProcessingException e) {
+                log.error("보고서 파싱 실패: reportId={}, message={}", response.getId(), e.getMessage());
+            }
         }
+
+        if (finalReport == null && individualReports.isEmpty()) {
+            throw new RuntimeException("분석된 리포트 데이터가 없습니다.");
+        }
+
+        return CurationResultDetailDTO.builder()
+                .finalReport(finalReport)
+                .individualReports(individualReports)
+                .build();
     }
+
+
 }
