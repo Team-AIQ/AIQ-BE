@@ -38,6 +38,14 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
+                // 1. 헤더 작성을 로드밸런서 신호에 맞게 설정 (가장 중요!)
+                .headers(headers -> headers
+                        .frameOptions(frameOptions -> frameOptions.sameOrigin())
+                )
+                // 2. HTTP로 들어와도 HTTPS인 것처럼 속여주는 설정 (리다이렉트 방지)
+                .requiresChannel(channel -> channel
+                        .anyRequest().requiresInsecure()
+                )
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
