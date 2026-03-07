@@ -43,9 +43,9 @@ public class SecurityConfig {
                         .frameOptions(frameOptions -> frameOptions.sameOrigin())
                 )
                 // 2. HTTP로 들어와도 HTTPS인 것처럼 속여주는 설정 (리다이렉트 방지)
-                .requiresChannel(channel -> channel
-                        .anyRequest().requiresInsecure()
-                )
+//                .requiresChannel(channel -> channel
+//                        .anyRequest().requiresInsecure()
+//                )
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
@@ -54,7 +54,7 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/", "/health", "/api/health").permitAll()
+                        .requestMatchers("/").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/credits/**").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/users/me").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/api/auth/withdraw").authenticated()
