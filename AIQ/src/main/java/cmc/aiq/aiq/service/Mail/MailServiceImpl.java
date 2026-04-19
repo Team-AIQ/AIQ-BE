@@ -37,7 +37,8 @@ public class MailServiceImpl implements MailService {
         String redisValue = email + ":" + origin;
         redisTemplate.opsForValue().set(token, redisValue, Duration.ofMinutes(5));
 
-        String verificationLink = "http://localhost:8080/api/auth/verify-link?token=" + token;
+        //String verificationLink = "http://localhost:8080/api/auth/verify-link?token=" + token;
+        String verificationLink = "http://192.168.0.12:8080/api/auth/verify-link?token=" + token;
 
         MimeMessage message = mailSender.createMimeMessage();
         // true는 multipart 메시지를 사용하겠다는 의미 (이미지 등 첨부 가능)

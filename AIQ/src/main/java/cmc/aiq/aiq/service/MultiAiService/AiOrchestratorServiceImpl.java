@@ -60,9 +60,17 @@ public class AiOrchestratorServiceImpl implements AiOrchestratorService {
     @Override
     @Transactional
     public void executeParallelAi(Long queryId, List<String> selectedModels, SseEmitter emitter) {
+        // [추가] 최종 보고서가 이미 존재하는지 확인하는 방어 로직
+        if (aiResponseRepository.existsByQueriesIdAndResponseType(queryId, ResponseType.FINAL_REPORT)) {
+            String errorMessage = "이미 해당 질문에 대한 최종 보고서가 존재합니다. queryId: " + queryId;
+            log.warn(errorMessage);
+            sendSse(emitter, "ERROR", "이미 생성된 보고서입니다. 히스토리에서 확인해주세요.");
+            emitter.complete(); // 이미 존재하는 경우, SSE 연결을 즉시 종료
+            return;
+        }
+
         SecurityContext mainContext = SecurityContextHolder.getContext();
-        
-        // [삭제] 크레딧 차감 로직 및 관련 try-catch 제거
+
         Queries queries = queriesRepository.findById(queryId)
                 .orElseThrow(() -> new RuntimeException("질문 정보를 찾을 수 없습니다."));
         String userQuestion = queries.getQuestion();
@@ -122,6 +130,7 @@ public class AiOrchestratorServiceImpl implements AiOrchestratorService {
                                 .join();
 
                         long reportStartTime = System.currentTimeMillis();
+                        // [수정] 최종 보고서 생성 시, 특정 모델이 아닌 'REPORT_AGENT'와 같은 추상적인 이름 사용 권장
                         AiResponse reportRecord = saveInitialPending(queries, "GPT", ResponseType.FINAL_REPORT);
                         saveCompletion(reportRecord.getId(), reportResult, enrichedReport, reportStartTime);
 
@@ -157,8 +166,7 @@ public class AiOrchestratorServiceImpl implements AiOrchestratorService {
                 AiRecommendationResponse finalResponse = new AiRecommendationResponse(
                         modelName,
                         aiOutput.recommendations(),
-                        aiOutput.specGuide(),
-                        aiOutput.finalWord()
+                        aiOutput.specGuide()
                 );
 
                 sendSse(emitter, modelName + "_ANSWER", finalResponse);

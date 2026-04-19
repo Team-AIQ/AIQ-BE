@@ -17,4 +17,5 @@ public interface AiResponseRepository extends JpaRepository<AiResponse, Long> {
     List<AiResponse> findAllByQueriesId(Long queryId);
 
     boolean existsByQueriesIdAndResponseType(Long queryId, ResponseType responseType);
+    Optional<AiResponse> findByQueriesIdAndResponseType(Long queryId, ResponseType responseType);
 }

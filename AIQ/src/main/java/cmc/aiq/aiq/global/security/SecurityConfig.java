@@ -4,6 +4,7 @@ import cmc.aiq.aiq.global.security.jwt.JwtAuthenticationFilter;
 import cmc.aiq.aiq.global.security.jwt.JwtTokenProvider;
 import cmc.aiq.aiq.global.security.oauth.CustomOAuth2UserService;
 import cmc.aiq.aiq.global.security.oauth.OAuth2SuccessHandler;
+import cmc.aiq.aiq.global.security.oauth.OAuthOriginCookieFilter;
 import jakarta.annotation.PostConstruct;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +20,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter;
 import org.springframework.web.cors.CorsConfiguration; // 추가
 import org.springframework.web.cors.CorsConfigurationSource; // 추가
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -33,6 +35,7 @@ public class SecurityConfig {
     private final JwtTokenProvider jwtTokenProvider;
     private final CustomOAuth2UserService customOAuth2UserService;
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
+    private final OAuthOriginCookieFilter oAuthOriginCookieFilter;
 
     @Bean
     public BCryptPasswordEncoder passwordEncoder(){
@@ -68,6 +71,7 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 // JWT 필터 등록
+                .addFilterBefore(oAuthOriginCookieFilter, OAuth2AuthorizationRequestRedirectFilter.class)
                 .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider),
                         UsernamePasswordAuthenticationFilter.class)
 

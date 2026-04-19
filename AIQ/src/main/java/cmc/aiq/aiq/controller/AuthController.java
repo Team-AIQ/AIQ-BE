@@ -19,6 +19,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -77,10 +79,17 @@ public class AuthController {
             String redirectUrl;
             if ("app".equalsIgnoreCase(origin)) {
                 // 앱: 설정해둔 커스텀 스킴(aiq://)을 통한 딥링크 리다이렉트
-                redirectUrl = "http://192.168.219.101:8080://signup-success?email=" + email;
+                //redirectUrl = "http://192.168.219.101:8080://signup-success?email=" + email;
+                //redirectUrl = "https://auth.expo.io/@iamyuunzo/aiq-fe/--/signup?verified=1&email=" + email;
+                redirectUrl = "exp://192.168.0.12:8081/--/signup?verified=1&email="
+                        + URLEncoder.encode(email, StandardCharsets.UTF_8);
+
+
             } else {
                 // 웹: Next.js의 가입 완료 혹은 추가 정보 입력 페이지
-                redirectUrl = "http://localhost:3000/signup?verified=1&email=" + email;
+                //redirectUrl = "http://localhost:3000/signup?verified=1&email=" + email;
+                redirectUrl = "https://www.aiq.ai.kr/signup?verified=1&email="
+                        + URLEncoder.encode(email, StandardCharsets.UTF_8);
             }
 
             return ResponseEntity.status(HttpStatus.FOUND) // 302 Redirect
