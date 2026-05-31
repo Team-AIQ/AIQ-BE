@@ -37,7 +37,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         } else if ("app".equals(origin)) {
             // 예: 모바일 앱 딥링크 주소 등
 //            baseUrl = "aiq://oauth/callback";
-            baseUrl = "exp://192.168.0.12:8081/--/oauth_callback";
+            baseUrl = "aiq://oauth/callback";
         }
 
         OAuth2AuthenticationToken authToken = (OAuth2AuthenticationToken) authentication;
