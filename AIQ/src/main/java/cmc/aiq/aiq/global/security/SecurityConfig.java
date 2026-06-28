@@ -46,18 +46,24 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 .authorizeHttpRequests(auth -> auth
+                        // --- 인증이 필요한 API ---
                         .requestMatchers(HttpMethod.POST, "/api/credits/**").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/users/me").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/api/auth/withdraw").authenticated()
                         .requestMatchers(HttpMethod.PATCH, "/api/auth/password/change").authenticated()
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/curation/history").hasRole("USER")
                         .requestMatchers("/api/v1/curation/**", "/api/v1/aiq/**").hasAnyRole("USER", "GUEST")
+
+                        // --- 인증이 필요 없는 API ---
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/auth/**", "/error").permitAll()
-                        // [수정] /oauth/** 경로를 추가하여 리다이렉션 페이지 접근 허용
-                        .requestMatchers("/login/**", "/oauth/**").permitAll()
+                        .requestMatchers("/oauth/**").permitAll() // 앱 리다이렉션용 컨트롤러
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                        
+                        // [수정] /login/**, /oauth2/** 에 대한 permitAll 규칙 삭제
+                        // Spring Security가 OAuth2 관련 내부 경로를 자동으로 처리하도록 위임합니다.
+
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider), UsernamePasswordAuthenticationFilter.class)
