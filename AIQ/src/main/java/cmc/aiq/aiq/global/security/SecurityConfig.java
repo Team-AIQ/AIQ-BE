@@ -38,14 +38,6 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                // 1. 헤더 작성을 로드밸런서 신호에 맞게 설정 (가장 중요!)
-//                .headers(headers -> headers
-//                        .frameOptions(frameOptions -> frameOptions.sameOrigin())
-//                )
-                // 2. HTTP로 들어와도 HTTPS인 것처럼 속여주는 설정 (리다이렉트 방지)
-//                .requiresChannel(channel -> channel
-//                        .anyRequest().requiresInsecure()
-//                )
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
@@ -54,7 +46,6 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/credits/**").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/users/me").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/api/auth/withdraw").authenticated()
@@ -64,7 +55,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/curation/history").hasRole("USER")
                         .requestMatchers("/api/v1/curation/**", "/api/v1/aiq/**").hasAnyRole("USER", "GUEST")
                         .requestMatchers("/api/auth/**", "/error").permitAll()
-                        .requestMatchers("/login/**", "/oauth2/**").permitAll()
+                        // [수정] /oauth/** 경로를 추가하여 리다이렉션 페이지 접근 허용
+                        .requestMatchers("/login/**", "/oauth/**").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .anyRequest().authenticated()
                 )
@@ -75,9 +67,9 @@ public class SecurityConfig {
                 )
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint((request, response, authException) -> {
-                            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "인증이 필요합니다.");
+                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                             response.setContentType("application/json;charset=UTF-8");
-                            response.getWriter().write("{\"message\":\"Unauthorized\"}");
+                            response.getWriter().write("{\"status\": 401, \"message\": \"인증이 필요합니다.\"}");
                         })
                 );
 
@@ -88,9 +80,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-
-        // 운영 및 로컬 프론트엔드 주소 허용
-        configuration.setAllowedOrigins(Arrays.asList("https://aiq.ai.kr","https://www.aiq.ai.kr", "http://localhost:3000"));
+        configuration.setAllowedOrigins(Arrays.asList("https://www.aiq.ai.kr", "http://localhost:3000"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);
