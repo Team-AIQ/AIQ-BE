@@ -29,15 +29,20 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
             throws IOException, ServletException {
 
         OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
-        String email = (String) oAuth2User.getAttributes().get("email");
-        String provider = request.getServletPath().substring(request.getServletPath().lastIndexOf('/') + 1);
+        
+        // CustomOAuth2UserService에서 저장/업데이트한 User 정보를 가져옵니다.
+        // provider와 providerId를 사용하여 DB에서 사용자를 다시 조회합니다.
+        String registrationId = ((org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken) authentication).getAuthorizedClientRegistrationId();
+        String providerId = oAuth2User.getName(); // Principal의 name이 providerId가 됩니다.
 
-        Users user = usersRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("회원 정보를 찾을 수 없습니다."));
+        Users user = usersRepository.findByProviderAndProviderId(
+                cmc.aiq.aiq.domain.ENUM.AuthProvider.valueOf(registrationId.toUpperCase()), providerId)
+                .orElseThrow(() -> new RuntimeException("OAuth2 인증 후 회원 정보를 찾을 수 없습니다."));
 
         if (user.getInitialLoginAt() == null ||
                 user.getInitialLoginAt().plusDays(90).isBefore(LocalDateTime.now())) {
             user.updateInitialLoginAt(LocalDateTime.now());
+            usersRepository.save(user);
         }
 
         String accessToken = jwtTokenProvider.createAccessToken(user.getId(), user.getEmail(), user.getRole().name(), user.getNickname());
@@ -45,27 +50,26 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         user.updateRefreshToken(refreshToken);
         usersRepository.save(user);
 
-        String origin = "web"; // 기본값은 웹
-        if (request.getParameter("state") != null) {
-            String state = request.getParameter("state");
-            if (state.contains("origin=app")) {
-                origin = "app";
-            }
+        String origin = "web";
+        if (request.getParameter("state") != null && request.getParameter("state").contains("origin=app")) {
+            origin = "app";
         }
 
         String targetUrl;
         if ("app".equalsIgnoreCase(origin)) {
-            // [수정] 앱일 경우, 커스텀 스킴으로 직접 리다이렉트하는 대신, 토큰을 전달하는 웹 페이지로 리다이렉트
-            targetUrl = UriComponentsBuilder.fromUriString("https://api.aiq.ai.kr/oauth/app/redirect")
+            // [수정] 프론트엔드의 REDIRECT_URL과 일치하도록, 커스텀 스킴으로 직접 리다이렉트합니다.
+            targetUrl = UriComponentsBuilder.fromUriString("aiq://oauth/callback")
                     .queryParam("accessToken", accessToken)
                     .queryParam("refreshToken", refreshToken)
                     .build().toUriString();
+            log.info("앱으로 리다이렉트: {}", targetUrl);
         } else {
-            // 웹일 경우, 프론트엔드의 특정 페이지로 리다이렉트
+            // 웹일 경우, 프론트엔드 웹사이트의 특정 페이지로 리다이렉트
             targetUrl = UriComponentsBuilder.fromUriString("https://www.aiq.ai.kr/login-success")
                     .queryParam("accessToken", accessToken)
                     .queryParam("refreshToken", refreshToken)
                     .build().toUriString();
+            log.info("웹으로 리다이렉트: {}", targetUrl);
         }
 
         getRedirectStrategy().sendRedirect(request, response, targetUrl);
