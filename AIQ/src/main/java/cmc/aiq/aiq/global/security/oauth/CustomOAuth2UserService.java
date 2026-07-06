@@ -38,14 +38,11 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         String providerId = extractProviderId(attributes, registrationId);
         AuthProvider authProvider = AuthProvider.valueOf(registrationId.toUpperCase());
 
-        // [수정] .orElseGet 안에서 save를 호출하여 트랜잭션 내에서 완료되도록 보장
         Users user = usersRepository.findByProviderAndProviderId(authProvider, providerId)
                 .map(existingUser -> {
-                    // 기존 유저 정보 업데이트 (필요 시)
                     return existingUser.updateSocialInfo(nickname);
                 })
                 .orElseGet(() -> {
-                    // 신규 유저 생성
                     Users newUser = Users.builder()
                             .email(email)
                             .nickname(nickname)
@@ -57,7 +54,6 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                     return usersRepository.save(newUser);
                 });
 
-        // [수정] 우리 시스템의 Users 객체를 포함하는 CustomOAuth2User를 반환
         return new CustomOAuth2User(
                 Collections.singleton(new SimpleGrantedAuthority(user.getRole().name())),
                 attributes,
@@ -66,5 +62,33 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         );
     }
 
-    // ... (extractEmail, extractNickname, extractProviderId 메소드는 동일)
+    // [추가] 누락되었던 헬퍼 메소드들
+    private String extractEmail(Map<String, Object> attributes, String registrationId) {
+        return switch (registrationId) {
+            case "google" -> (String) attributes.get("email");
+            case "naver" -> (Map<String, Object>) attributes.get("response") != null
+                    ? (String) ((Map<String, Object>) attributes.get("response")).get("email") : null;
+            case "kakao" -> (Map<String, Object>) attributes.get("kakao_account") != null
+                    ? (String) ((Map<String, Object>) attributes.get("kakao_account")).get("email") : null;
+            default -> throw new IllegalArgumentException("지원하지 않는 소셜 로그인입니다.");
+        };
+    }
+
+    private String extractNickname(Map<String, Object> attributes, String registrationId) {
+        return switch (registrationId) {
+            case "google" -> (String) attributes.get("name");
+            case "naver" -> (String) ((Map<String, Object>) attributes.get("response")).get("nickname");
+            case "kakao" -> (String) ((Map<String, Object>) ((Map<String, Object>) attributes.get("kakao_account")).get("profile")).get("nickname");
+            default -> (String) attributes.get("nickname");
+        };
+    }
+
+    private String extractProviderId(Map<String, Object> attributes, String registrationId) {
+        return switch (registrationId) {
+            case "google" -> (String) attributes.get("sub");
+            case "naver" -> (String) ((Map<String, Object>) attributes.get("response")).get("id");
+            case "kakao" -> String.valueOf(attributes.get("id"));
+            default -> throw new IllegalArgumentException("지원하지 않는 소셜 로그인입니다.");
+        };
+    }
 }
