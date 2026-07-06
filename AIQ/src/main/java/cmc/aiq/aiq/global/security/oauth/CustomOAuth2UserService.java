@@ -4,7 +4,6 @@ import cmc.aiq.aiq.domain.ENUM.AuthProvider;
 import cmc.aiq.aiq.domain.Users;
 import cmc.aiq.aiq.repository.UsersRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
@@ -13,7 +12,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.Collections;
 import java.util.Map;
 
 @Service
@@ -28,9 +26,6 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         OAuth2User oAuth2User = super.loadUser(userRequest);
 
         String registrationId = userRequest.getClientRegistration().getRegistrationId();
-        String userNameAttributeName = userRequest.getClientRegistration().getProviderDetails()
-                .getUserInfoEndpoint().getUserNameAttributeName();
-
         Map<String, Object> attributes = oAuth2User.getAttributes();
 
         String email = extractEmail(attributes, registrationId);
@@ -38,10 +33,9 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         String providerId = extractProviderId(attributes, registrationId);
         AuthProvider authProvider = AuthProvider.valueOf(registrationId.toUpperCase());
 
-        Users user = usersRepository.findByProviderAndProviderId(authProvider, providerId)
-                .map(existingUser -> {
-                    return existingUser.updateSocialInfo(nickname);
-                })
+        // [복원] DB에서 사용자를 찾거나, 없으면 새로 생성하여 저장하는 로직은 그대로 유지
+        usersRepository.findByProviderAndProviderId(authProvider, providerId)
+                .map(existingUser -> existingUser.updateSocialInfo(nickname))
                 .orElseGet(() -> {
                     Users newUser = Users.builder()
                             .email(email)
@@ -54,15 +48,10 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                     return usersRepository.save(newUser);
                 });
 
-        return new CustomOAuth2User(
-                Collections.singleton(new SimpleGrantedAuthority(user.getRole().name())),
-                attributes,
-                userNameAttributeName,
-                user
-        );
+        // [복원] CustomOAuth2User 대신, Spring Security의 기본 OAuth2User를 그대로 반환
+        return oAuth2User;
     }
 
-    // [추가] 누락되었던 헬퍼 메소드들
     private String extractEmail(Map<String, Object> attributes, String registrationId) {
         return switch (registrationId) {
             case "google" -> (String) attributes.get("email");

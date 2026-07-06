@@ -9,6 +9,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,6 +17,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
@@ -29,9 +31,17 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication)
             throws IOException, ServletException {
 
-        // [수정] DB를 다시 조회하는 대신, 인증 객체(Principal)에서 CustomOAuth2User를 직접 가져옵니다.
-        CustomOAuth2User customOAuth2User = (CustomOAuth2User) authentication.getPrincipal();
-        Users user = customOAuth2User.getUser(); // <-- DB 조회 없이 바로 User 객체 사용!
+        OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
+        Map<String, Object> attributes = oAuth2User.getAttributes();
+        String registrationId = ((org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken) authentication).getAuthorizedClientRegistrationId();
+
+        // [복원] 소셜 서비스 응답에서 이메일을 추출합니다.
+        String email = extractEmail(attributes, registrationId);
+
+        // [복원] 이메일을 기반으로 DB에서 사용자를 다시 조회합니다.
+        // 이 시점에는 CustomOAuth2UserService에 의해 사용자가 반드시 DB에 존재합니다.
+        Users user = usersRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("인증 후 DB에서 회원 정보를 찾을 수 없습니다. email: " + email));
 
         // 리프레시 토큰 만료일 갱신 로직
         if (user.getInitialLoginAt() == null ||
@@ -43,7 +53,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         String accessToken = jwtTokenProvider.createAccessToken(user.getId(), user.getEmail(), user.getRole().name(), user.getNickname());
         String refreshToken = jwtTokenProvider.createRefreshToken(user.getId(), user.getEmail(), user.getRole().name(), true);
         user.updateRefreshToken(refreshToken);
-        usersRepository.save(user); // 변경된 initialLoginAt, refreshToken을 DB에 반영
+        usersRepository.save(user);
 
         // 리다이렉트 URL 분기 처리
         String origin = "web";
@@ -67,5 +77,15 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         }
 
         getRedirectStrategy().sendRedirect(request, response, targetUrl);
+    }
+
+    // [추가] 이메일 추출을 위한 헬퍼 메소드
+    private String extractEmail(Map<String, Object> attributes, String registrationId) {
+        return switch (registrationId) {
+            case "google" -> (String) attributes.get("email");
+            case "naver" -> (String) ((Map<String, Object>) attributes.get("response")).get("email");
+            case "kakao" -> (String) ((Map<String, Object>) attributes.get("kakao_account")).get("email");
+            default -> throw new IllegalArgumentException("지원하지 않는 소셜 로그인입니다.");
+        };
     }
 }
