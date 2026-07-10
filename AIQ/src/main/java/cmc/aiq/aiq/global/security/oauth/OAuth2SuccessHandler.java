@@ -1,5 +1,6 @@
 package cmc.aiq.aiq.global.security.oauth;
 
+import cmc.aiq.aiq.domain.ENUM.AuthProvider;
 import cmc.aiq.aiq.domain.Users;
 import cmc.aiq.aiq.global.security.jwt.JwtTokenProvider;
 import cmc.aiq.aiq.repository.UsersRepository;
@@ -9,6 +10,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
@@ -33,15 +35,16 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
         OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
         Map<String, Object> attributes = oAuth2User.getAttributes();
-        String registrationId = ((org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken) authentication).getAuthorizedClientRegistrationId();
+        
+        // [수정] Authentication 객체에서 provider(registrationId)를 직접 가져옵니다.
+        String registrationId = ((OAuth2AuthenticationToken) authentication).getAuthorizedClientRegistrationId();
+        AuthProvider provider = AuthProvider.valueOf(registrationId.toUpperCase());
 
-        // [복원] 소셜 서비스 응답에서 이메일을 추출합니다.
         String email = extractEmail(attributes, registrationId);
 
-        // [복원] 이메일을 기반으로 DB에서 사용자를 다시 조회합니다.
-        // 이 시점에는 CustomOAuth2UserService에 의해 사용자가 반드시 DB에 존재합니다.
-        Users user = usersRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("인증 후 DB에서 회원 정보를 찾을 수 없습니다. email: " + email));
+        // [수정] 이제 (email, provider) 조합으로 정확한 사용자를 조회합니다.
+        Users user = usersRepository.findByEmailAndProvider(email, provider)
+                .orElseThrow(() -> new RuntimeException("인증 후 DB에서 회원 정보를 찾을 수 없습니다. email: " + email + ", provider: " + provider));
 
         // 리프레시 토큰 만료일 갱신 로직
         if (user.getInitialLoginAt() == null ||
@@ -79,7 +82,6 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         getRedirectStrategy().sendRedirect(request, response, targetUrl);
     }
 
-    // [추가] 이메일 추출을 위한 헬퍼 메소드
     private String extractEmail(Map<String, Object> attributes, String registrationId) {
         return switch (registrationId) {
             case "google" -> (String) attributes.get("email");
