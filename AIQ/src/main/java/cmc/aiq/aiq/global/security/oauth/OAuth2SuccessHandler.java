@@ -59,8 +59,34 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         usersRepository.save(user);
 
         // 리다이렉트 URL 분기 처리
+        // [수정] 리다이렉트 URL 분기 처리
         String origin = "web";
-        if (request.getParameter("state") != null && request.getParameter("state").contains("origin=app")) {
+
+        // 1) 기존 파라미터 확인
+        String stateParam = request.getParameter("state");
+
+        // 2) 만약 파라미터에 없다면 스프링 시큐리티가 OAuth2 세션에 저장해둔 state 값을 찾습니다.
+        if (stateParam == null && request.getSession() != null) {
+            // 소셜 로그인 진입 시 임시 저장된 OAuth2 Authorization Request 정보 획득
+            Object authorizationRequest = request.getSession().getAttribute("SPRING_SECURITY_SAVED_REQUEST");
+            if (authorizationRequest == null) {
+                // 일반적인 OAuth2 로그인 요청 저장소 세션 속성 키 확인
+                authorizationRequest = request.getSession().getAttribute("org.springframework.security.web.savedrequest.DefaultSavedRequest");
+            }
+
+            // 세션이나 쿼리 문자열에 origin=app이 녹아있는지 포괄적으로 검증
+            String queryString = request.getQueryString();
+            if ((queryString != null && queryString.contains("origin=app")) ||
+                    (stateParam != null && stateParam.contains("origin=app"))) {
+                origin = "app";
+            }
+        } else if (stateParam != null && stateParam.contains("origin=app")) {
+            origin = "app";
+        }
+
+        // 🌟 혹시 모르니 URI 자체에 state 파라미터 흔적이 있었는지도 더블 체크하는 가장 확실한 방법
+        if (request.getRequestURI().contains("origin=app") ||
+                (request.getQueryString() != null && request.getQueryString().contains("origin=app"))) {
             origin = "app";
         }
 
