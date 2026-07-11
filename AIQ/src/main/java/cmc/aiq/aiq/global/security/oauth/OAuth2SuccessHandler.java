@@ -36,59 +36,26 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
         Map<String, Object> attributes = oAuth2User.getAttributes();
         
-        // [수정] Authentication 객체에서 provider(registrationId)를 직접 가져옵니다.
         String registrationId = ((OAuth2AuthenticationToken) authentication).getAuthorizedClientRegistrationId();
         AuthProvider provider = AuthProvider.valueOf(registrationId.toUpperCase());
 
         String email = extractEmail(attributes, registrationId);
 
-        // [수정] 이제 (email, provider) 조합으로 정확한 사용자를 조회합니다.
         Users user = usersRepository.findByEmailAndProvider(email, provider)
                 .orElseThrow(() -> new RuntimeException("인증 후 DB에서 회원 정보를 찾을 수 없습니다. email: " + email + ", provider: " + provider));
 
-        // 리프레시 토큰 만료일 갱신 로직
         if (user.getInitialLoginAt() == null ||
                 user.getInitialLoginAt().plusDays(90).isBefore(LocalDateTime.now())) {
             user.updateInitialLoginAt(LocalDateTime.now());
         }
 
-        // 토큰 생성 및 저장
         String accessToken = jwtTokenProvider.createAccessToken(user.getId(), user.getEmail(), user.getRole().name(), user.getNickname());
         String refreshToken = jwtTokenProvider.createRefreshToken(user.getId(), user.getEmail(), user.getRole().name(), true);
         user.updateRefreshToken(refreshToken);
         usersRepository.save(user);
 
-        // 리다이렉트 URL 분기 처리
-        // [수정] 리다이렉트 URL 분기 처리
-        String origin = "web";
-
-        // 1) 기존 파라미터 확인
-        String stateParam = request.getParameter("state");
-
-        // 2) 만약 파라미터에 없다면 스프링 시큐리티가 OAuth2 세션에 저장해둔 state 값을 찾습니다.
-        if (stateParam == null && request.getSession() != null) {
-            // 소셜 로그인 진입 시 임시 저장된 OAuth2 Authorization Request 정보 획득
-            Object authorizationRequest = request.getSession().getAttribute("SPRING_SECURITY_SAVED_REQUEST");
-            if (authorizationRequest == null) {
-                // 일반적인 OAuth2 로그인 요청 저장소 세션 속성 키 확인
-                authorizationRequest = request.getSession().getAttribute("org.springframework.security.web.savedrequest.DefaultSavedRequest");
-            }
-
-            // 세션이나 쿼리 문자열에 origin=app이 녹아있는지 포괄적으로 검증
-            String queryString = request.getQueryString();
-            if ((queryString != null && queryString.contains("origin=app")) ||
-                    (stateParam != null && stateParam.contains("origin=app"))) {
-                origin = "app";
-            }
-        } else if (stateParam != null && stateParam.contains("origin=app")) {
-            origin = "app";
-        }
-
-        // 🌟 혹시 모르니 URI 자체에 state 파라미터 흔적이 있었는지도 더블 체크하는 가장 확실한 방법
-        if (request.getRequestURI().contains("origin=app") ||
-                (request.getQueryString() != null && request.getQueryString().contains("origin=app"))) {
-            origin = "app";
-        }
+        // [수정] 'state' 파라미터 확인 로직을 삭제하고, 'origin' 파라미터만으로 앱/웹을 구분합니다.
+        String origin = request.getParameter("origin");
 
         String targetUrl;
         if ("app".equalsIgnoreCase(origin)) {
@@ -98,7 +65,8 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
                     .build().toUriString();
             log.info("앱으로 리다이렉트: {}", targetUrl);
         } else {
-            targetUrl = UriComponentsBuilder.fromUriString("https://www.aiq.ai.kr/login-success")
+            // origin 파라미터가 없거나 "app"이 아닌 모든 경우를 웹으로 간주합니다.
+            targetUrl = UriComponentsBuilder.fromUriString("https://aiq.ai.kr/oauth/callback")
                     .queryParam("accessToken", accessToken)
                     .queryParam("refreshToken", refreshToken)
                     .build().toUriString();
