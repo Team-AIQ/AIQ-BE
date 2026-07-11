@@ -54,8 +54,13 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         user.updateRefreshToken(refreshToken);
         usersRepository.save(user);
 
-        // [수정] 'state' 파라미터 확인 로직을 삭제하고, 'origin' 파라미터만으로 앱/웹을 구분합니다.
-        String origin = request.getParameter("origin");
+        String origin = (String) request.getSession().getAttribute("login_origin");
+        if (origin == null) {
+            origin = "web"; // 기본값
+        }
+
+        // 사용이 끝난 세션 데이터는 깔끔하게 지워주기
+        request.getSession().removeAttribute("login_origin");
 
         String targetUrl;
         if ("app".equalsIgnoreCase(origin)) {
