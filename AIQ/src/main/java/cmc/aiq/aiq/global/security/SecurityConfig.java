@@ -3,6 +3,7 @@ package cmc.aiq.aiq.global.security;
 import cmc.aiq.aiq.global.security.jwt.JwtAuthenticationFilter;
 import cmc.aiq.aiq.global.security.jwt.JwtTokenProvider;
 import cmc.aiq.aiq.global.security.oauth.CustomOAuth2UserService;
+import cmc.aiq.aiq.global.security.oauth.OAuth2OriginFilter;
 import cmc.aiq.aiq.global.security.oauth.OAuth2SuccessHandler;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -67,6 +68,7 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider), UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(new OAuth2OriginFilter(), org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter.class)
                 .oauth2Login(oauth2 -> oauth2
                         .userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService))
                         .successHandler(oAuth2SuccessHandler)

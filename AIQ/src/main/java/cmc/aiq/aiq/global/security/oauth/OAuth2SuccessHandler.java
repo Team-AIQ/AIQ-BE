@@ -5,6 +5,7 @@ import cmc.aiq.aiq.domain.Users;
 import cmc.aiq.aiq.global.security.jwt.JwtTokenProvider;
 import cmc.aiq.aiq.repository.UsersRepository;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -54,13 +55,23 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         user.updateRefreshToken(refreshToken);
         usersRepository.save(user);
 
-        String origin = (String) request.getSession().getAttribute("login_origin");
-        if (origin == null) {
-            origin = "web"; // 기본값
-        }
+        String origin = "web"; // 기본값
+        Cookie[] cookies = request.getCookies();
+        if (cookies != null) {
+            for (Cookie cookie : cookies) {
+                if ("login_origin".equals(cookie.getName())) {
+                    origin = cookie.getValue();
+                    log.info("🍪 쿠키에서 origin 값 발견: {}", origin);
 
-        // 사용이 끝난 세션 데이터는 깔끔하게 지워주기
-        request.getSession().removeAttribute("login_origin");
+                    // 확인 후 일회용 쿠키 삭제 (초기화)
+                    Cookie deleteCookie = new Cookie("login_origin", null);
+                    deleteCookie.setMaxAge(0);
+                    deleteCookie.setPath("/");
+                    response.addCookie(deleteCookie);
+                    break;
+                }
+            }
+        }
 
         String targetUrl;
         if ("app".equalsIgnoreCase(origin)) {
@@ -68,14 +79,13 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
                     .queryParam("accessToken", accessToken)
                     .queryParam("refreshToken", refreshToken)
                     .build().toUriString();
-            log.info("앱으로 리다이렉트: {}", targetUrl);
+            log.info("📱 앱으로 리다이렉트: {}", targetUrl);
         } else {
-            // origin 파라미터가 없거나 "app"이 아닌 모든 경우를 웹으로 간주합니다.
             targetUrl = UriComponentsBuilder.fromUriString("https://aiq.ai.kr/oauth/callback")
                     .queryParam("accessToken", accessToken)
                     .queryParam("refreshToken", refreshToken)
                     .build().toUriString();
-            log.info("웹으로 리다이렉트: {}", targetUrl);
+            log.info("💻 웹으로 리다이렉트: {}", targetUrl);
         }
 
         getRedirectStrategy().sendRedirect(request, response, targetUrl);
