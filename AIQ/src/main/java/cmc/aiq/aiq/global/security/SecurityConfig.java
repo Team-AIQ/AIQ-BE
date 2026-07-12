@@ -88,6 +88,11 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(Arrays.asList(
+                "https://www.aiq.ai.kr",
+                "https://aiq.ai.kr",     // <--- 이 부분이 꼭 들어가야 합니다.
+                "http://localhost:3000"
+        ));
         configuration.setAllowedOrigins(Arrays.asList("https://www.aiq.ai.kr", "http://localhost:3000"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
