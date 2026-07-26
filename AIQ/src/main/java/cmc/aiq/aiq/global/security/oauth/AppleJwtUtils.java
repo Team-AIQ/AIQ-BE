@@ -1,70 +1,67 @@
 package cmc.aiq.aiq.global.security.oauth;
 
+import io.jsonwebtoken.JwsHeader;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.security.KeyFactory;
 import java.security.PrivateKey;
 import java.security.spec.PKCS8EncodedKeySpec;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Base64;
 import java.util.Date;
 
 @Component
+@RequiredArgsConstructor
 public class AppleJwtUtils {
 
     @Value("${apple.team-id}")
-    private String teamId;
+    private String APPLE_TEAM_ID;
+
+    @Value("${apple.client-id}")
+    private String APPLE_CLIENT_ID;
 
     @Value("${apple.key-id}")
-    private String keyId;
-
-    @Value("${spring.security.oauth2.client.registration.apple.client-id}")
-    private String clientId;
+    private String APPLE_KEY_ID;
 
     @Value("${apple.private-key}")
-    private String privateKeyString;
+    private String APPLE_PRIVATE_KEY;
 
     /**
-     * Apple OAuth2 통신에 사용할 Client Secret (JWT) 생성
+     * Apple 서버에 인증하기 위한 client_secret (JWT)을 생성합니다.
+     * 이 JWT는 최대 6개월까지 유효합니다.
      */
-    public String createAppleClientSecret() {
-        Date now = new Date();
-        // 만료 시간은 보통 한 달(30일) 정도로 설정해 두는 편이야. (애플 정책상 최대 6개월까지 가능해)
-        Date expiration = new Date(now.getTime() + (30L * 24 * 60 * 60 * 1000));
-
+    public String createClientSecret() {
+        Date expirationDate = Date.from(LocalDateTime.now().plusDays(30).atZone(ZoneId.systemDefault()).toInstant());
+        
         return Jwts.builder()
-                .setHeaderParam("kid", keyId)
-                .setHeaderParam("alg", "ES256")
-                .setIssuer(teamId)
-                .setIssuedAt(now)
-                .setExpiration(expiration)
+                .setHeaderParam(JwsHeader.KEY_ID, APPLE_KEY_ID)
+                .setIssuer(APPLE_TEAM_ID)
                 .setAudience("https://appleid.apple.com")
-                .setSubject(clientId)
+                .setSubject(APPLE_CLIENT_ID)
+                .setExpiration(expirationDate)
+                .setIssuedAt(new Date())
                 .signWith(getPrivateKey(), SignatureAlgorithm.ES256)
                 .compact();
     }
 
-    /**
-     * 환경 변수로 주입받은 p8 비대칭 키 문자열을 Java PrivateKey 객체로 변환
-     */
     private PrivateKey getPrivateKey() {
         try {
-            // Git Secret에서 주입될 때 포함될 수 있는 헤더, 푸터, 줄바꿈을 깔끔하게 제거해 줘
-            String privateKeyContent = privateKeyString
+            String privateKeyString = APPLE_PRIVATE_KEY
                     .replace("-----BEGIN PRIVATE KEY-----", "")
                     .replace("-----END PRIVATE KEY-----", "")
                     .replaceAll("\\s+", "");
 
-            byte[] encodedKey = Base64.getDecoder().decode(privateKeyContent);
-            PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(encodedKey);
-
-            // 애플은 Elliptic Curve (EC) 알고리즘을 사용하므로 KeyFactory를 EC로 지정해 줘야 해
-            KeyFactory keyFactory = KeyFactory.getInstance("EC");
-            return keyFactory.generatePrivate(keySpec);
+            byte[] keyBytes = Base64.getDecoder().decode(privateKeyString);
+            PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(keyBytes);
+            KeyFactory kf = KeyFactory.getInstance("EC");
+            return kf.generatePrivate(spec);
         } catch (Exception e) {
-            throw new RuntimeException("Apple Login용 Private Key 생성에 실패했어.", e);
+            throw new RuntimeException("Apple private key를 가져오는 중 오류 발생", e);
         }
     }
 }
