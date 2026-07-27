@@ -1,10 +1,6 @@
 package cmc.aiq.aiq.controller;
 
-import cmc.aiq.aiq.dto.ApiResponse;
-import cmc.aiq.aiq.dto.ChangePasswordRequestDTO;
-import cmc.aiq.aiq.dto.LoginRequestDTO;
-import cmc.aiq.aiq.dto.SignUpRequestDTO;
-import cmc.aiq.aiq.dto.TokenResponseDTO;
+import cmc.aiq.aiq.dto.*;
 import cmc.aiq.aiq.global.security.CustomUserDetails;
 import cmc.aiq.aiq.service.AuthService;
 import cmc.aiq.aiq.service.Mail.MailService;
@@ -125,5 +121,11 @@ public class AuthController {
     ) {
         authService.changePassword(userDetails.getUserId(), request);
         return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK, "비밀번호가 성공적으로 변경되었습니다.", null));
+    }
+    @PostMapping("/apple")
+    public ResponseEntity<ApiResponse<TokenResponseDTO>> appleLogin(@RequestBody AppleLoginRequestDTO request) {
+        // authService에 애플 로그인 전용 로직을 호출
+        TokenResponseDTO tokenResponse = authService.appleLogin(request);
+        return ResponseEntity.ok(ApiResponse.success(tokenResponse));
     }
 }

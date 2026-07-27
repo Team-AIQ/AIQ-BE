@@ -37,7 +37,7 @@ public class AppleJwtUtils {
      */
     public String createClientSecret() {
         Date expirationDate = Date.from(LocalDateTime.now().plusDays(30).atZone(ZoneId.systemDefault()).toInstant());
-        
+
         return Jwts.builder()
                 .setHeaderParam(JwsHeader.KEY_ID, APPLE_KEY_ID)
                 .setIssuer(APPLE_TEAM_ID)

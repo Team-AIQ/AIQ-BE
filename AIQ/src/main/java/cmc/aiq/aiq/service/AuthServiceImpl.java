@@ -1,15 +1,13 @@
 package cmc.aiq.aiq.service;
 
 import cmc.aiq.aiq.domain.ENUM.UserRole;
-import cmc.aiq.aiq.dto.ChangePasswordRequestDTO;
-import cmc.aiq.aiq.dto.SignUpRequestDTO;
+import cmc.aiq.aiq.dto.*;
 import cmc.aiq.aiq.global.security.jwt.JwtTokenProvider;
 import cmc.aiq.aiq.domain.ENUM.AuthProvider;
 import cmc.aiq.aiq.domain.Users;
-import cmc.aiq.aiq.dto.LoginRequestDTO;
-import cmc.aiq.aiq.dto.TokenResponseDTO;
 import cmc.aiq.aiq.repository.UsersRepository;
 import cmc.aiq.aiq.service.Mail.MailService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.mail.MessagingException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
@@ -21,6 +19,8 @@ import org.springframework.transaction.annotation.Transactional; // <-- 올바�
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.Base64;
+import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
 
@@ -207,5 +207,66 @@ public class AuthServiceImpl implements AuthService{
         usersRepository.save(user);
 
         log.info("비밀번호 변경 완료: userId={}", userId);
+    }
+    @Override
+    @Transactional
+    public TokenResponseDTO appleLogin(AppleLoginRequestDTO request) {
+        // 1. 프론트에서 받은 idToken 검증 및 이메일, 애플 고유 id(sub) 추출
+        // (이 부분은 io.jsonwebtoken 라이브러리로 디코딩하는 메서드를 따로 만들어야 해)
+        Map<String, Object> attributes = parseAppleIdToken(request.getIdToken());
+        String appleSub = (String) attributes.get("sub");
+        String appleEmail = (String) attributes.get("email");
+
+        // 2. 프론트에서 넘겨준 이름 확인 (없으면 기본값)
+        String nickname = (request.getName() != null && !request.getName().isEmpty())
+                ? request.getName() : "Apple 사용자";
+
+        // 3. DB 조회 후 저장 및 업데이트
+        Users user = usersRepository.findByProviderAndProviderId(AuthProvider.APPLE, appleSub)
+                .map(existingUser -> {
+                    if (nickname.equals("Apple 사용자") && existingUser.getNickname() != null) {
+                        return existingUser;
+                    }
+                    return existingUser.updateSocialInfo(nickname);
+                })
+                .orElseGet(() -> {
+                    Users newUser = Users.builder()
+                            .email(appleEmail)
+                            .nickname(nickname)
+                            .provider(AuthProvider.APPLE)
+                            .providerId(appleSub)
+                            .initialLoginAt(LocalDateTime.now())
+                            .currentCredits(20L)
+                            .build();
+                    return usersRepository.save(newUser);
+                });
+
+        String accessToken = jwtTokenProvider.createAccessToken(
+                user.getId(),           // Long userId
+                user.getEmail(),        // String email
+                user.getRole().name(),  // String role
+                user.getNickname()      // String nickname
+        );
+
+        String refreshToken = jwtTokenProvider.createRefreshToken(
+                user.getId(),           // Long userId
+                user.getEmail(),        // String email
+                user.getRole().name(),  // String role
+                false                   // boolean isRememberMe (자동 로그인 여부, 기본값 false)
+        );
+
+        return new TokenResponseDTO(accessToken, refreshToken);
+    }
+    private Map<String, Object> parseAppleIdToken(String idToken) {
+        try {
+            String[] chunks = idToken.split("\\.");
+            Base64.Decoder decoder = Base64.getUrlDecoder();
+            String payload = new String(decoder.decode(chunks[1]));
+
+            ObjectMapper objectMapper = new ObjectMapper();
+            return objectMapper.readValue(payload, Map.class);
+        } catch (Exception e) {
+            throw new RuntimeException("Apple id_token을 파싱하는 중 오류 발생", e);
+        }
     }
 }
