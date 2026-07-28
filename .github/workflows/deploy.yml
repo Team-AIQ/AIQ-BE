@@ -80,5 +80,9 @@ jobs:
               -e OAUTH_NAVER_CLIENT_ID='${{ secrets.OAUTH_NAVER_CLIENT_ID }}' \
               -e OAUTH_NAVER_CLIENT_SECRET='${{ secrets.OAUTH_NAVER_CLIENT_SECRET }}' \
               -e SMTP_PASSWORD='${{ secrets.SMTP_PASSWORD }}' \
+              -e APPLE_TEAM_ID=${{ secrets.APPLE_TEAM_ID }} \
+              -e APPLE_CLIENT_ID=${{ secrets.APPLE_CLIENT_ID }} \
+              -e APPLE_KEY_ID=${{ secrets.APPLE_KEY_ID }} \
+              -e APPLE_PRIVATE_KEY="${{ secrets.APPLE_PRIVATE_KEY }}" \
               -e SERVER_FORWARD_HEADERS_STRATEGY=native \
               ${{ secrets.DOCKER_USERNAME }}/aiq-backend:latest
