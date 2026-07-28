@@ -126,6 +126,6 @@ public class AuthController {
     public ResponseEntity<ApiResponse<TokenResponseDTO>> appleLogin(@RequestBody AppleLoginRequestDTO request) {
         // authService에 애플 로그인 전용 로직을 호출
         TokenResponseDTO tokenResponse = authService.appleLogin(request);
-        return ResponseEntity.ok(ApiResponse.success(tokenResponse));
+        return ResponseEntity.ok(ApiResponse.success(org.springframework.http.HttpStatus.OK, "애플 로그인 성공", tokenResponse));
     }
 }
