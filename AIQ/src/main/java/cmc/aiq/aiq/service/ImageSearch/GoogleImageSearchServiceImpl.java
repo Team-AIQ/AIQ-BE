@@ -38,16 +38,18 @@ public class GoogleImageSearchServiceImpl implements GoogleImageSearchService {
 
             HttpEntity<String> entity = new HttpEntity<>(headers);
 
-            // ★ [수정] UriComponentsBuilder를 사용해 100% 안전하게 URL 생성
+            // ★ 기존에 있던 NAVER_API_URL 변수를 쓰지 않고 여기서 직접 깨끗한 URL을 조립합니다.
             URI uri = UriComponentsBuilder.fromHttpUrl("https://openapi.naver.com/v1/search/shop.json")
                     .queryParam("query", productName)
                     .queryParam("display", 1)
                     .queryParam("sort", "sim")
-                    .encode() // 한글이나 특수기호 자동 인코딩
+                    .encode() // 한글 및 특수문자 안전하게 자동 인코딩
                     .build()
                     .toUri();
 
-            // uri 변수 자체를 넘겨주므로 오타나 인코딩 에러가 발생하지 않음
+            // ★ 배포 후 로그에서 실제로 어떤 주소로 요청이 갔는지 눈으로 직접 확인할 수 있도록 로그 추가!
+            log.info("네이버 쇼핑 API 실제 요청 URL: {}", uri.toString());
+
             ResponseEntity<Map> responseEntity = restTemplate.exchange(
                     uri,
                     HttpMethod.GET,
@@ -68,7 +70,8 @@ public class GoogleImageSearchServiceImpl implements GoogleImageSearchService {
             return "https://placehold.co/600x400?text=No+Image";
 
         } catch (Exception e) {
-            log.error("네이버 쇼핑 이미지 검색 중 오류 발생 - 제품명: {}", productName, e);
+            // e.getMessage()를 통해 불필요하게 긴 스택 트레이스 대신 핵심 에러 메시지만 깔끔하게 출력
+            log.error("네이버 쇼핑 이미지 검색 중 오류 발생 - 제품명: {}, 에러: {}", productName, e.getMessage());
             return "https://placehold.co/600x400?text=No+Image";
         }
     }
