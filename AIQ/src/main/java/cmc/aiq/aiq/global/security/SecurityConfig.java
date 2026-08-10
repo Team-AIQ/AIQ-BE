@@ -59,6 +59,7 @@ public class SecurityConfig {
                         // --- 인증이 필요 없는 API ---
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/auth/**", "/error").permitAll()
+                        .requestMatchers("/logo.png", "/favicon.ico").permitAll()
                         .requestMatchers("/oauth/**").permitAll() // 앱 리다이렉션용 컨트롤러
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         
@@ -88,12 +89,14 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
+
+        // 이렇게 한 번에 모든 허용 도메인을 묶어주면 돼!
         configuration.setAllowedOrigins(Arrays.asList(
                 "https://www.aiq.ai.kr",
-                "https://aiq.ai.kr",     // <--- 이 부분이 꼭 들어가야 합니다.
+                "https://aiq.ai.kr",
                 "http://localhost:3000"
         ));
-        configuration.setAllowedOrigins(Arrays.asList("https://www.aiq.ai.kr", "http://localhost:3000"));
+
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);

@@ -254,7 +254,7 @@ public class AuthServiceImpl implements AuthService{
                 user.getRole().name(),  // String role
                 false                   // boolean isRememberMe (자동 로그인 여부, 기본값 false)
         );
-
+        user.updateRefreshToken(refreshToken);
         return new TokenResponseDTO(accessToken, refreshToken);
     }
     private Map<String, Object> parseAppleIdToken(String idToken) {
