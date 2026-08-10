@@ -9,7 +9,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.web.util.UriComponentsBuilder;
 
+import java.net.URI;
 import java.util.List;
 import java.util.Map;
 
@@ -36,13 +38,21 @@ public class GoogleImageSearchServiceImpl implements GoogleImageSearchService {
 
             HttpEntity<String> entity = new HttpEntity<>(headers);
 
-            // [수정] RestTemplate이 URI 변수({query})를 자동으로 인코딩하도록 변경
+            // ★ [수정] UriComponentsBuilder를 사용해 100% 안전하게 URL 생성
+            URI uri = UriComponentsBuilder.fromHttpUrl("https://openapi.naver.com/v1/search/shop.json")
+                    .queryParam("query", productName)
+                    .queryParam("display", 1)
+                    .queryParam("sort", "sim")
+                    .encode() // 한글이나 특수기호 자동 인코딩
+                    .build()
+                    .toUri();
+
+            // uri 변수 자체를 넘겨주므로 오타나 인코딩 에러가 발생하지 않음
             ResponseEntity<Map> responseEntity = restTemplate.exchange(
-                    NAVER_API_URL,
+                    uri,
                     HttpMethod.GET,
                     entity,
-                    Map.class,
-                    productName // URI 변수 {query}에 productName 값을 매핑
+                    Map.class
             );
 
             Map<String, Object> body = responseEntity.getBody();
