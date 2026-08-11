@@ -103,10 +103,13 @@ public class Users {
 
     public void withdraw() {
         this.deletedAt = LocalDateTime.now();
+        // 개인정보 익명화 처리는 아주 훌륭해! 그대로 유지해 주자.
         this.email = "deleted_user_" + this.id + "@deleted.com";
         this.nickname = "탈퇴한 사용자";
         this.password = null;
         this.refreshToken = null;
-        this.providerId = null;
+    }
+    public boolean isDeleted() {
+        return this.deletedAt != null;
     }
 }

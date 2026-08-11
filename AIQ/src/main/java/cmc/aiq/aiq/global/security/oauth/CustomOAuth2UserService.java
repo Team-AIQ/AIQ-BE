@@ -35,7 +35,17 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
         // [복원] DB에서 사용자를 찾거나, 없으면 새로 생성하여 저장하는 로직은 그대로 유지
         usersRepository.findByProviderAndProviderId(authProvider, providerId)
-                .map(existingUser -> existingUser.updateSocialInfo(nickname))
+                .map(existingUser -> {
+                    // ★ 소프트 딜리트 여부 확인 (엔티티의 실제 메서드명에 맞게 수정해 줘!)
+                    // 예: existingUser.isDeleted() 또는 existingUser.getDeletedAt() != null
+                    if (existingUser.isDeleted()) {
+                        throw new OAuth2AuthenticationException(
+                                new org.springframework.security.oauth2.core.OAuth2Error("account_withdrawn"),
+                                "탈퇴한 계정으로는 재가입할 수 없습니다."
+                        );
+                    }
+                    return existingUser.updateSocialInfo(nickname);
+                })
                 .orElseGet(() -> {
                     Users newUser = Users.builder()
                             .email(email)
