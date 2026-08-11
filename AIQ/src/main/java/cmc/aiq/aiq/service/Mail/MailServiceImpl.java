@@ -25,8 +25,7 @@ public class MailServiceImpl implements MailService {
     private final UsersRepository usersRepository;
 
     // [수정] 로고 URL을 S3 운영 주소로 변경 (배포용)
-    private final String LOGO_URL = "https://raw.githubusercontent.com/Team-AIQ/AIQ-BE/84c3aeac3a2aa745f834cae9e572f3e25e0bfb35/AIQ/src/main/resources/static/logo.png";
-
+    private final String LOGO_URL = "https://raw.githubusercontent.com/Team-AIQ/AIQ-BE/b9d11d35c4e560ee25ea300cd79077c1f1863c16/AIQ/src/main/resources/static/app_logo.png";
     @Async
     @Override
     public void sendMagicLink(String email , String origin) throws MessagingException {
