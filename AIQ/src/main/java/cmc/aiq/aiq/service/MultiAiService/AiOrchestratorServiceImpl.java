@@ -22,6 +22,7 @@ import dev.langchain4j.service.AiServices;
 import dev.langchain4j.service.Result;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.task.DelegatingSecurityContextAsyncTaskExecutor;
@@ -29,10 +30,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
@@ -56,6 +54,8 @@ public class AiOrchestratorServiceImpl implements AiOrchestratorService {
     private final DelegatingSecurityContextAsyncTaskExecutor taskExecutor;
     private final ReportEnrichmentService reportEnrichmentService;
     private final CreditService creditService;
+    @Value("${ai.api.test-mode:false}")
+    private boolean isTestMode;
 
     @Override
     @Transactional
@@ -159,6 +159,34 @@ public class AiOrchestratorServiceImpl implements AiOrchestratorService {
             SecurityContextHolder.setContext(context);
             long startTime = System.currentTimeMillis();
             try {
+                if (isTestMode) {
+                    log.info("[테스트 모드] {} API 호출을 생략하고 더미 데이터를 반환합니다.", modelName);
+
+                    // 가짜 제품 추천 데이터 1개 생성
+                    ProductRecommendation dummyProduct = new ProductRecommendation(
+                            "더미 테스트 제품 " + modelName,
+                            "DUMMY-" + modelName + "-01",
+                            "테스트 모드를 사용하는 개발자",
+                            Collections.singletonList("비용을 아끼기 위해 선정되었습니다.")
+                    );
+
+                    AiRecommendationResponse dummyResponse = new AiRecommendationResponse(
+                            modelName,
+                            Collections.singletonList(dummyProduct),
+                            "이 응답은 과금이 발생하지 않는 로컬 테스트용 더미 가이드입니다."
+                    );
+
+                    // 프론트엔드로 SSE 전송
+                    sendSse(emitter, modelName + "_ANSWER", dummyResponse);
+
+                    // DB에도 가짜 결과 저장 (Result 객체가 없으므로 null 전달)
+                    saveCompletion(responseId, null, dummyResponse, startTime);
+
+                    // 1.5초 정도 기다렸다가 반환해서, 실제 API 통신처럼 자연스러운 로딩 연출! (선택 사항)
+                    Thread.sleep(1500);
+
+                    return dummyResponse;
+                }
                 RecommendationAgent agent = AiServices.create(RecommendationAgent.class, model);
                 Result<AiRecommendationResponse> result = agent.generate(systemPrompt, question);
                 AiRecommendationResponse aiOutput = result.content();
