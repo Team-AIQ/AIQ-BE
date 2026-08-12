@@ -1,9 +1,11 @@
 package cmc.aiq.aiq.dto.FinalReport;
 
 import dev.langchain4j.model.output.structured.Description;
+import lombok.Builder; // ★ 추가됨
 
 import java.util.Map;
 
+@Builder // ★ 추가됨: 이제 TopProduct.builder()를 사용할 수 있습니다!
 public record TopProduct(@Description("순위 (1~3)")
                          int rank,
 

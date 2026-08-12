@@ -7,6 +7,7 @@ import cmc.aiq.aiq.domain.ENUM.ResponseType;
 import cmc.aiq.aiq.domain.Models;
 import cmc.aiq.aiq.domain.Queries;
 import cmc.aiq.aiq.dto.FinalReport.FinalReportResponse;
+import cmc.aiq.aiq.dto.FinalReport.TopProduct;
 import cmc.aiq.aiq.dto.MultiAiDTO.AiRecommendationResponse;
 import cmc.aiq.aiq.dto.MultiAiDTO.ProductRecommendation;
 import cmc.aiq.aiq.repository.AiResponseRepository;
@@ -113,25 +114,57 @@ public class AiOrchestratorServiceImpl implements AiOrchestratorService {
                         String combinedText = formatResponsesForReport(responses);
                         log.info("모든 모델 응답 완료. 최종 보고서 생성 시작...");
 
-                        String systemPromptTemplate = promptManager.getProcessedPrompt("REPORT_AGENT_SYSTEM", Map.of());
-                        Result<FinalReportResponse> reportResult = reportAgent.generateReport(
-                                systemPromptTemplate,
-                                userQuestion,
-                                curationContext,
-                                combinedText,
-                                categoryName
-                        );
+                        FinalReportResponse enrichedReport;
+                        Result<FinalReportResponse> reportResult = null; // 테스트 모드일 때는 Result가 없으므로 null 처리
 
-                        FinalReportResponse rawReport = reportResult.content();
+                        // ★ [추가] 테스트 모드일 경우 최종 보고서와 이미지 검색을 생략하고 더미 반환
+                        if (isTestMode) {
+                            log.info("[테스트 모드] 최종 보고서 AI 호출 및 이미지 검색을 생략합니다.");
 
-                        log.info("제품 이미지 검색 시작...");
-                        FinalReportResponse enrichedReport = reportEnrichmentService
-                                .enrichReportWithImages(rawReport)
-                                .join();
+                            // 지성이가 구현해 둔 TopProduct 및 FinalReportResponse 생성자(또는 Builder)에 맞춰서 수정해 줘!
+                            TopProduct dummyProduct = TopProduct.builder()
+                                    .rank(1)
+                                    .productName("더미 AIQ 추천 세탁기")
+                                    .productCode("DUMMY-WASH-123")
+                                    .price("1,200,000원")
+                                    .productImage("https://placehold.co/600x400?text=Dummy+Image")
+                                    .specs(Map.of("용량", "24kg", "에너지", "1등급"))
+                                    .lowestPriceLink("https://dummy.link")
+                                    .comparativeAnalysis("테스트 모드에서 생성된 더미 분석입니다.")
+                                    .build();
+
+                            enrichedReport = FinalReportResponse.builder()
+                                    .consensus("모든 모델이 이 제품을 추천하는 더미 합의 내용입니다.")
+                                    .decisionBranches("더미 판단 근거입니다.")
+                                    .aiqRecommendationReason("비용 절감을 위해 더미 데이터로 추천합니다.")
+                                    .topProducts(Collections.singletonList(dummyProduct))
+                                    .finalWord("테스트 모드가 켜져 있습니다.")
+                                    .build();
+
+                            Thread.sleep(1500); // 1.5초 대기로 자연스러운 로딩 연출
+                        } else {
+                            // ★ 기존 실제 AI 호출 및 이미지 검색 로직
+                            String systemPromptTemplate = promptManager.getProcessedPrompt("REPORT_AGENT_SYSTEM", Map.of());
+                            reportResult = reportAgent.generateReport(
+                                    systemPromptTemplate,
+                                    userQuestion,
+                                    curationContext,
+                                    combinedText,
+                                    categoryName
+                            );
+
+                            FinalReportResponse rawReport = reportResult.content();
+
+                            log.info("제품 이미지 검색 시작...");
+                            enrichedReport = reportEnrichmentService
+                                    .enrichReportWithImages(rawReport)
+                                    .join();
+                        }
 
                         long reportStartTime = System.currentTimeMillis();
-                        // [수정] 최종 보고서 생성 시, 특정 모델이 아닌 'REPORT_AGENT'와 같은 추상적인 이름 사용 권장
                         AiResponse reportRecord = saveInitialPending(queries, "GPT", ResponseType.FINAL_REPORT);
+
+                        // reportResult는 테스트 모드일 때 null로 넘어가게 됨
                         saveCompletion(reportRecord.getId(), reportResult, enrichedReport, reportStartTime);
 
                         sendSse(emitter, "FINAL_REPORT", enrichedReport);
@@ -242,7 +275,8 @@ public class AiOrchestratorServiceImpl implements AiOrchestratorService {
             Map<String, Object> metadata = new HashMap<>();
             metadata.put("latency_ms", latency);
 
-            if (result.tokenUsage() != null) {
+            // ★ [수정] result가 null이 아닐 때만 토큰 사용량을 기록하도록 방어 코드 추가
+            if (result != null && result.tokenUsage() != null) {
                 metadata.put("token_usage", Map.of(
                         "input_tokens", result.tokenUsage().inputTokenCount(),
                         "output_tokens", result.tokenUsage().outputTokenCount(),

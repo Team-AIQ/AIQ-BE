@@ -55,6 +55,7 @@ public class CreditServiceImpl implements CreditService {
         // 회원인 경우 크레딧 차감
         user.deductCredits(type.getCost());
         usersRepository.save(user);
+        log.info("크레딧 차감중 - 크레딧 차감 유형 : {}, 크레딧 차감 액수 : {}",type.name(), type.getCost());
 
         // 크레딧 사용 로그 생성
         CreditLog creditLog = CreditLog.builder()
