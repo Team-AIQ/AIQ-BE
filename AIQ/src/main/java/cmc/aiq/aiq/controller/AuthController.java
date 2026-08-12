@@ -49,8 +49,14 @@ public class AuthController {
     @PostMapping("/email-request")
     @Operation(summary = "매직링크 요청")
     public ResponseEntity<ApiResponse<Void>> requestMagicLink(@RequestParam String email, @RequestParam String origin) throws MessagingException {
-        mailService.sendMagicLink(email , origin);
-        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK, "인증 이메일이 발송되었습니다.", null));
+        try {
+            mailService.sendMagicLink(email, origin);
+            return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK, "인증 이메일이 발송되었습니다.", null));
+        } catch (RuntimeException e) {
+            // ★ 409 Conflict (충돌) 상태 코드와 함께 지성이가 쓴 에러 메시지를 프론트엔드로 안전하게 전달!
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ApiResponse.failure(HttpStatus.CONFLICT, e.getMessage()));
+        }
     }
 
     @PostMapping("/guest")
