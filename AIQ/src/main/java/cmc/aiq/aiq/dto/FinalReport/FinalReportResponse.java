@@ -1,9 +1,11 @@
 package cmc.aiq.aiq.dto.FinalReport;
 
 import dev.langchain4j.model.output.structured.Description; // Description 어노테이션 import
+import lombok.Builder;
 
 import java.util.List;
 
+@Builder
 public record FinalReportResponse(
         @Description("모든 AI 모델들의 공통적인 의견을 요약한 내용입니다. 사용자의 상황에 대한 공감을 포함해야 합니다.")
         String consensus,
