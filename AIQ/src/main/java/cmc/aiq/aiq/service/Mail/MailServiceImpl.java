@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 @Service
 @RequiredArgsConstructor
@@ -26,9 +27,10 @@ public class MailServiceImpl implements MailService {
 
     // [수정] 로고 URL을 S3 운영 주소로 변경 (배포용)
     private final String LOGO_URL = "https://raw.githubusercontent.com/Team-AIQ/AIQ-BE/b9d11d35c4e560ee25ea300cd79077c1f1863c16/AIQ/src/main/resources/static/app_logo.png";
-    @Async
     @Override
     public void sendMagicLink(String email , String origin) throws MessagingException {
+
+        // 1. 동기 처리 (메인 스레드): 여기서 에러가 나면 프론트엔드로 409 에러가 즉시 날아갑니다!
         if(usersRepository.existsByEmailAndProvider(email, AuthProvider.EMAIL)){
             throw new RuntimeException("이미 가입된 이메일입니다. 로그인 혹은 비밀번호 찾기를 이용해주세요.");
         }
@@ -36,21 +38,26 @@ public class MailServiceImpl implements MailService {
         String token = UUID.randomUUID().toString();
         String redisValue = email + ":" + origin;
         redisTemplate.opsForValue().set(token, redisValue, Duration.ofMinutes(5));
-
-        // [수정] 백엔드 도메인 변경
         String verificationLink = "https://api.aiq.ai.kr/api/auth/verify-link?token=" + token;
 
-        MimeMessage message = mailSender.createMimeMessage();
-        MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-        helper.setFrom("yujiseong588@gmail.com");
-        helper.setTo(email);
-        helper.setSubject("[AIQ] 본인 인증 확인 메일입니다.");
+        // 2. 비동기 처리 (백그라운드 스레드): 느린 메일 전송 작업만 따로 빼서 실행합니다.
+        CompletableFuture.runAsync(() -> {
+            try {
+                MimeMessage message = mailSender.createMimeMessage();
+                MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+                helper.setFrom("yujiseong588@gmail.com");
+                helper.setTo(email);
+                helper.setSubject("[AIQ] 본인 인증 확인 메일입니다.");
 
-        String htmlContent = getEmailHtml(verificationLink);
-        helper.setText(htmlContent, true);
+                String htmlContent = getEmailHtml(verificationLink);
+                helper.setText(htmlContent, true);
 
-        mailSender.send(message);
-        log.info("메일 발송 완료: {}", email);
+                mailSender.send(message);
+                log.info("메일 발송 완료: {}", email);
+            } catch (Exception e) {
+                log.error("메일 발송 중 비동기 에러 발생: {}", email, e);
+            }
+        });
     }
 
     @Override
