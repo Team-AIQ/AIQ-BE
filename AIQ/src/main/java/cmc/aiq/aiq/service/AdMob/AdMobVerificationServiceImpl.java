@@ -37,25 +37,41 @@ public class AdMobVerificationServiceImpl implements AdMobVerificationService {
     }
 
     @Override
-    public boolean verify(String customData, String keyId, String signature, String timestamp, String transactionId, String rewardAmount, String rewardItem) {
+    // 파라미터를 일일이 받지 않고, 원본 쿼리 스트링과 서명, 키 값만 받습니다.
+    public boolean verify(String rawQueryString, String keyId, String signature) {
         try {
-            PublicKeyVerify verifier = getVerifier(keyId);
-            byte[] data = buildMessage(customData, timestamp, transactionId, rewardAmount, rewardItem);
+            // 1. AdMob 명세상 '&signature=' 앞부분까지가 서명을 만든 원본 데이터입니다.
+            int signatureIndex = rawQueryString.indexOf("&signature=");
+            if (signatureIndex == -1) {
+                log.error("원본 쿼리 스트링에 signature가 포함되어 있지 않습니다.");
+                return false;
+            }
+
+            // 2. 파라미터 순서나 URL 인코딩을 절대 건드리지 않고 원본 그대로를 가져옵니다.
+            String messageToVerify = rawQueryString.substring(0, signatureIndex);
+            byte[] data = messageToVerify.getBytes(StandardCharsets.UTF_8);
             byte[] decodedSignature = Base64.getUrlDecoder().decode(signature);
 
+            PublicKeyVerify verifier = getVerifier(keyId);
             verifier.verify(decodedSignature, data);
-            return true; // 서명 검증 성공
-        } catch (GeneralSecurityException | IOException e) { // IOException 추가
+
+            return true; // 서명 검증 성공!
+
+        } catch (GeneralSecurityException | IOException e) {
             log.warn("AdMob 서명 검증 중 오류 발생. keyId: {}, signature: {}", keyId, signature, e);
-            // 캐시된 키가 만료되었을 수 있으므로 캐시를 비우고 다시 시도
             verifiers.remove(keyId);
+
+            // 재시도 로직
             try {
-                PublicKeyVerify verifier = getVerifier(keyId);
-                byte[] data = buildMessage(customData, timestamp, transactionId, rewardAmount, rewardItem);
+                int signatureIndex = rawQueryString.indexOf("&signature=");
+                String messageToVerify = rawQueryString.substring(0, signatureIndex);
+                byte[] data = messageToVerify.getBytes(StandardCharsets.UTF_8);
                 byte[] decodedSignature = Base64.getUrlDecoder().decode(signature);
+
+                PublicKeyVerify verifier = getVerifier(keyId);
                 verifier.verify(decodedSignature, data);
                 return true;
-            } catch (GeneralSecurityException | IOException ex) { // IOException 추가
+            } catch (GeneralSecurityException | IOException ex) {
                 log.error("재시도에도 서명 검증 실패", ex);
                 return false;
             }

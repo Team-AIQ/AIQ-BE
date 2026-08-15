@@ -5,6 +5,7 @@ import cmc.aiq.aiq.service.AdMob.AdMobVerificationService;
 import cmc.aiq.aiq.service.Credit.CreditService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.http.HttpStatus;
@@ -29,24 +30,22 @@ public class RewardController {
     @GetMapping("/admob")
     @Operation(summary = "AdMob 보상형 광고 콜백", description = "AdMob 서버가 광고 시청 완료 시 호출하는 엔드포인트입니다. 직접 호출하지 마세요.")
     public ResponseEntity<Void> handleAdMobReward(
+            HttpServletRequest request, // ★ 핵심 1: 디코딩되지 않은 원본 쿼리 스트링을 꺼내기 위해 추가!
             @RequestParam("custom_data") String customData,
             @RequestParam("key_id") String keyId,
             @RequestParam("signature") String signature,
-            @RequestParam("user_id") String googleUserId, // AdMob에서 제공하는 사용자 ID
-            @RequestParam("ad_network") String adNetwork,
-            @RequestParam("ad_unit") String adUnit,
             @RequestParam("reward_amount") String rewardAmount,
-            @RequestParam("reward_item") String rewardItem,
-            @RequestParam("timestamp") String timestamp,
-            @RequestParam("transaction_id") String transactionId
+            @RequestParam(value = "transaction_id", required = false) String transactionId
     ) {
-        log.info("AdMob 보상 콜백 수신: userId={}, transactionId={}", customData, transactionId);
+        // ★ 핵심 2: 스프링이 건드리지 않은 날것(Raw) 그대로의 쿼리 스트링을 가져옵니다.
+        String rawQueryString = request.getQueryString();
+        log.info("AdMob 보상 콜백 수신: rawQueryString={}", rawQueryString);
 
-        // 1. AdMob 요청 서명 검증
-        boolean isVerified = adMobVerificationService.verify(customData, keyId, signature, timestamp, transactionId, rewardAmount, rewardItem);
+        // 1. 파라미터를 낱개가 아닌, 조립되지 않은 원본 쿼리 스트링 전체로 검증을 요청합니다.
+        boolean isVerified = adMobVerificationService.verify(rawQueryString, keyId, signature);
 
         if (isVerified) {
-            // 2. 서명 검증 성공 시 보상 지급
+            // 2. 서명 검증 성공 시 보상 지급 (customData에 userId가 있다고 가정)
             try {
                 Long userId = Long.parseLong(customData);
                 BigDecimal amount = new BigDecimal(rewardAmount);
@@ -59,17 +58,14 @@ public class RewardController {
 
             } catch (NumberFormatException e) {
                 log.error("custom_data 파싱 오류. 유효한 Long 타입의 userId가 필요합니다. customData: {}", customData, e);
-                // 잘못된 요청으로 처리
                 return ResponseEntity.badRequest().build();
             } catch (Exception e) {
                 log.error("보상 지급 중 서버 내부 오류 발생", e);
-                // 서버 내부 오류
                 return ResponseEntity.internalServerError().build();
             }
         } else {
             // 3. 서명 검증 실패 시
             log.warn("AdMob 서명 검증 실패. transactionId: {}", transactionId);
-            // 위변조된 요청일 수 있으므로 400 Bad Request 또는 403 Forbidden 응답
             return ResponseEntity.badRequest().build();
         }
     }
