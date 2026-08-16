@@ -1,18 +1,17 @@
 package cmc.aiq.aiq.service.AdMob;
 
-import com.google.crypto.tink.JsonKeysetReader; // 수정된 import
-import com.google.crypto.tink.KeysetHandle;
-import com.google.crypto.tink.PublicKeyVerify;
-import com.google.crypto.tink.signature.SignatureConfig;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.web.util.UriComponentsBuilder;
 
-import java.io.IOException; // 추가된 import
 import java.nio.charset.StandardCharsets;
-import java.security.GeneralSecurityException;
+import java.security.KeyFactory;
+import java.security.PublicKey;
+import java.security.Signature;
+import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -21,97 +20,79 @@ import java.util.concurrent.ConcurrentHashMap;
 @Log4j2
 public class AdMobVerificationServiceImpl implements AdMobVerificationService {
 
-    @Value("${admob.ssv.key-server-url}")
+    @Value("${admob.ssv.key-server-url:https://www.gstatic.com/admob/reward/certs}")
     private String keyServerUrl;
 
     private final RestTemplate restTemplate = new RestTemplate();
-    private final Map<String, PublicKeyVerify> verifiers = new ConcurrentHashMap<>();
-
-    static {
-        try {
-            SignatureConfig.register();
-        } catch (GeneralSecurityException e) {
-            log.error("Tink SignatureConfig 등록 실패", e);
-            throw new RuntimeException(e);
-        }
-    }
+    private final ObjectMapper objectMapper = new ObjectMapper(); // JSON 파싱용
+    private final Map<String, PublicKey> publicKeys = new ConcurrentHashMap<>();
 
     @Override
-    // 파라미터를 일일이 받지 않고, 원본 쿼리 스트링과 서명, 키 값만 받습니다.
     public boolean verify(String rawQueryString, String keyId, String signature) {
         try {
-            // 1. AdMob 명세상 '&signature=' 앞부분까지가 서명을 만든 원본 데이터입니다.
+            // 1. &signature= 앞부분까지가 AdMob이 서명한 진짜 원본 데이터!
             int signatureIndex = rawQueryString.indexOf("&signature=");
             if (signatureIndex == -1) {
-                log.error("원본 쿼리 스트링에 signature가 포함되어 있지 않습니다.");
+                log.error("원본 쿼리 스트링에 &signature= 가 없습니다.");
                 return false;
             }
 
-            // 2. 파라미터 순서나 URL 인코딩을 절대 건드리지 않고 원본 그대로를 가져옵니다.
             String messageToVerify = rawQueryString.substring(0, signatureIndex);
             byte[] data = messageToVerify.getBytes(StandardCharsets.UTF_8);
+
+            // 2. AdMob 서명은 URL-Safe Base64로 오기 때문에 getUrlDecoder() 사용
             byte[] decodedSignature = Base64.getUrlDecoder().decode(signature);
 
-            PublicKeyVerify verifier = getVerifier(keyId);
-            verifier.verify(decodedSignature, data);
-
-            return true; // 서명 검증 성공!
-
-        } catch (GeneralSecurityException | IOException e) {
-            log.warn("AdMob 서명 검증 중 오류 발생. keyId: {}, signature: {}", keyId, signature, e);
-            verifiers.remove(keyId);
-
-            // 재시도 로직
-            try {
-                int signatureIndex = rawQueryString.indexOf("&signature=");
-                String messageToVerify = rawQueryString.substring(0, signatureIndex);
-                byte[] data = messageToVerify.getBytes(StandardCharsets.UTF_8);
-                byte[] decodedSignature = Base64.getUrlDecoder().decode(signature);
-
-                PublicKeyVerify verifier = getVerifier(keyId);
-                verifier.verify(decodedSignature, data);
-                return true;
-            } catch (GeneralSecurityException | IOException ex) {
-                log.error("재시도에도 서명 검증 실패", ex);
+            // 3. AdMob 서버에서 공개키 가져오기
+            PublicKey publicKey = getPublicKey(keyId);
+            if (publicKey == null) {
+                log.error("해당 keyId에 대한 공개키를 찾을 수 없습니다: {}", keyId);
                 return false;
             }
+
+            // 4. Java 표준 라이브러리(ECDSA P-256)로 서명 검증!
+            Signature sig = Signature.getInstance("SHA256withECDSA");
+            sig.initVerify(publicKey);
+            sig.update(data);
+
+            return sig.verify(decodedSignature);
+
         } catch (Exception e) {
-            log.error("AdMob 서명 검증 중 알 수 없는 오류", e);
+            log.error("AdMob 서명 검증 중 예기치 않은 오류 발생", e);
             return false;
         }
     }
 
-    private PublicKeyVerify getVerifier(String keyId) throws GeneralSecurityException, IOException { // IOException 추가
-        // 캐시된 키가 있으면 사용
-        if (verifiers.containsKey(keyId)) {
-            return verifiers.get(keyId);
+    private PublicKey getPublicKey(String keyId) throws Exception {
+        // 이미 다운받은 키가 있으면 캐시에서 꺼내 씀
+        if (publicKeys.containsKey(keyId)) {
+            return publicKeys.get(keyId);
         }
 
-        // 캐시에 없으면 AdMob 서버에서 공개 키 다운로드
-        log.info("AdMob 공개 키 다운로드 시도. keyId: {}", keyId);
+        // 캐시에 없으면 AdMob 서버에서 새로 JSON 다운로드
+        log.info("AdMob 공개 키 다운로드 시도... keyId: {}", keyId);
         String keysJson = restTemplate.getForObject(keyServerUrl, String.class);
 
-        // TinkJsonProtoKeysetReader 대신 JsonKeysetReader 사용
-        KeysetHandle keysetHandle = KeysetHandle.readNoSecret(
-                JsonKeysetReader.withString(keysJson)
-        );
+        // Tink 대신 Jackson ObjectMapper를 이용해 평범하게 파싱!
+        JsonNode root = objectMapper.readTree(keysJson);
+        JsonNode keysNode = root.get("keys");
 
-        PublicKeyVerify verifier = keysetHandle.getPrimitive(PublicKeyVerify.class);
-        verifiers.put(keyId, verifier); // 다음 사용을 위해 캐시
-        return verifier;
-    }
+        if (keysNode != null && keysNode.isArray()) {
+            for (JsonNode node : keysNode) {
+                String currentKeyId = node.get("keyId").asText();
+                String base64Key = node.get("base64").asText();
 
-    private byte[] buildMessage(String customData, String timestamp, String transactionId, String rewardAmount, String rewardItem) {
-        // AdMob 문서에 명시된 대로, 쿼리 파라미터를 사용하여 서명할 원본 메시지 구성
-        // 주의: 파라미터 순서가 중요할 수 있으므로, 문서와 동일하게 구성
-        return UriComponentsBuilder.newInstance()
-                .queryParam("custom_data", customData)
-                .queryParam("timestamp", timestamp)
-                .queryParam("transaction_id", transactionId)
-                .queryParam("reward_amount", rewardAmount)
-                .queryParam("reward_item", rewardItem)
-                .build()
-                .getQuery()
-                .getBytes(StandardCharsets.UTF_8);
+                // 추출한 base64 문자열을 자바 PublicKey 객체로 변환
+                byte[] keyBytes = Base64.getDecoder().decode(base64Key);
+                X509EncodedKeySpec spec = new X509EncodedKeySpec(keyBytes);
+                KeyFactory kf = KeyFactory.getInstance("EC");
+                PublicKey pubKey = kf.generatePublic(spec);
+
+                // 다음 사용을 위해 Map에 저장
+                publicKeys.put(currentKeyId, pubKey);
+            }
+        }
+
+        return publicKeys.get(keyId);
     }
 }
