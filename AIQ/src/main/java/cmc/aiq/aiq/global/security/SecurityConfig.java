@@ -62,6 +62,7 @@ public class SecurityConfig {
                         .requestMatchers("/logo.png", "/favicon.ico").permitAll()
                         .requestMatchers("/oauth/**").permitAll() // 앱 리다이렉션용 컨트롤러
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                        .requestMatchers("/api/v1/reward/admob").permitAll()
                         
                         // [수정] /login/**, /oauth2/** 에 대한 permitAll 규칙 삭제
                         // Spring Security가 OAuth2 관련 내부 경로를 자동으로 처리하도록 위임합니다.
