@@ -59,7 +59,6 @@ public class AiOrchestratorServiceImpl implements AiOrchestratorService {
     private boolean isTestMode;
 
     @Override
-    @Transactional
     public void executeParallelAi(Long queryId, List<String> selectedModels, SseEmitter emitter) {
         // [추가] 최종 보고서가 이미 존재하는지 확인하는 방어 로직
         if (aiResponseRepository.existsByQueriesIdAndResponseType(queryId, ResponseType.FINAL_REPORT)) {
@@ -222,7 +221,6 @@ public class AiOrchestratorServiceImpl implements AiOrchestratorService {
     }
 
     @Override
-    @Transactional
     public CompletableFuture<AiRecommendationResponse> callAi(ChatLanguageModel model, String modelName, String systemPrompt,
                                                               String question, Queries queries, SseEmitter emitter, SecurityContext context) {
         AiResponse record = saveInitialPending(queries, modelName, ResponseType.INDIVIDUAL);

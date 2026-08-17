@@ -15,6 +15,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -74,6 +75,17 @@ public class SecurityConfig {
                 .oauth2Login(oauth2 -> oauth2
                         .userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService))
                         .successHandler(oAuth2SuccessHandler)
+                        .failureHandler((request, response, exception) -> {
+                            String errorCode = "login_failed";
+
+                            if (exception instanceof OAuth2AuthenticationException) {
+                                errorCode = ((OAuth2AuthenticationException) exception).getError().getErrorCode();
+                            }
+
+                            // 앱으로 다시 돌아가도록 딥링크 주소로 리다이렉트 시켜주면 돼!
+                            String redirectUrl = "aiq://login?error=" + errorCode;
+                            response.sendRedirect(redirectUrl);
+                        })
                 )
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint((request, response, authException) -> {
