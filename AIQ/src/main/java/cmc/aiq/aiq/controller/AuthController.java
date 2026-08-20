@@ -129,9 +129,19 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK, "비밀번호가 성공적으로 변경되었습니다.", null));
     }
     @PostMapping("/apple")
+    @Operation(summary = "애플 로그인")
     public ResponseEntity<ApiResponse<TokenResponseDTO>> appleLogin(@RequestBody AppleLoginRequestDTO request) {
-        // authService에 애플 로그인 전용 로직을 호출
-        TokenResponseDTO tokenResponse = authService.appleLogin(request);
-        return ResponseEntity.ok(ApiResponse.success(org.springframework.http.HttpStatus.OK, "애플 로그인 성공", tokenResponse));
+        try {
+            // 정상 로그인 시
+            TokenResponseDTO tokenResponse = authService.appleLogin(request);
+            return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK, "애플 로그인 성공", tokenResponse));
+
+        } catch (RuntimeException e) {
+            // ★ 에러 발생 시: 409 상태 코드와 함께 AuthService에서 던진 에러 메시지를 프론트엔드로 전달!
+            // (프론트엔드의 if (!response.ok) 블록이 이 응답을 낚아채게 됨)
+            log.warn("애플 로그인 실패: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ApiResponse.failure(HttpStatus.CONFLICT, e.getMessage()));
+        }
     }
 }
